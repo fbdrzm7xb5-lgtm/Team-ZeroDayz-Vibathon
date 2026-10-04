@@ -1,0 +1,2493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>GU Insider Map — 3D Smart Campus Navigator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; touch-action: none; }
+    body, html { width: 100%; height: 100%; overflow: hidden; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #090d16; color: #fff; }
+    #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+    
+    .header { position: absolute; top: 12px; left: 12px; z-index: 10; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(10px); border: 1px solid rgba(56, 189, 248, 0.3); padding: 12px 18px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6); pointer-events: none; }
+    .header h1 { font-size: 17px; font-weight: 700; color: #38bdf8; letter-spacing: 0.5px; }
+    .header p { font-size: 11px; color: #94a3b8; margin-top: 3px; }
+    .nav-panel-toggle { position: fixed; top: 20px; right: 22px; z-index: 20; width: 32px; aspect-ratio: 1; display: grid; place-items: center; border: 1px solid rgba(56, 189, 248, .4); border-radius: 5px; background: #1e293b; color: #e2e8f0; font-size: 19px; line-height: 1; cursor: pointer; box-shadow: 0 3px 12px rgba(0,0,0,.35); }
+    .nav-panel-toggle:hover { background: #334155; color: #fff; }
+
+    .nav-box { position: absolute; top: 12px; right: 12px; z-index: 11; width: 310px; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(10px); border: 1px solid rgba(56, 189, 248, 0.3); padding: 14px; border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6); }
+    .nav-box h2 { font-size: 13px; color: #38bdf8; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .input-group { margin-bottom: 8px; }
+    .input-group label { display: block; font-size: 10px; color: #94a3b8; margin-bottom: 3px; text-transform: uppercase; font-weight: 600; }
+    .input-group select { width: 100%; padding: 7px 10px; background: #1e293b; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 5px; color: #fff; font-size: 12px; outline: none; }
+    
+    .cam-mode-box { margin-bottom: 10px; }
+    .explore-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px}
+    .btn-explore{width:100%;background:#0f766e;border:1px solid rgba(45,212,191,.35);color:#ecfeff;padding:8px 5px;font-size:10px;font-weight:800;border-radius:5px;cursor:pointer;transition:.2s}
+    .btn-explore.active{background:#0d9488;border-color:#5eead4;box-shadow:0 0 12px rgba(45,212,191,.25)}
+    .mobile-hint{font-size:9px;color:#64748b;line-height:1.35;margin-top:6px}
+    .tour-progress{display:none;margin-top:7px;height:4px;border-radius:99px;background:#1e293b;overflow:hidden}.tour-progress.active{display:block}.tour-progress span{display:block;height:100%;width:0;background:#22c55e;transition:width .15s}
+
+    .btn-cam { width: 100%; background: #334155; border: 1px solid rgba(56, 189, 248, 0.3); color: #cbd5e1; padding: 8px; font-size: 11px; font-weight: 700; border-radius: 5px; cursor: pointer; text-align: center; transition: 0.2s; }
+    .btn-cam.active { background: #0284c7; color: #fff; border-color: #38bdf8; box-shadow: 0 0 10px rgba(56, 189, 248, 0.5); }
+
+    .scenario-panel { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+    .scenario-panel h3 { font-size: 10px; color: #f59e0b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .btn-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; }
+    .btn-scenario { background: #334155; border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; padding: 6px 4px; font-size: 10px; font-weight: 600; border-radius: 4px; cursor: pointer; text-align: center; transition: 0.2s; }
+    .btn-scenario.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
+
+    .btn-nav-start { background: #0284c7; color: #fff; width: 100%; margin-top: 10px; padding: 10px; border: none; border-radius: 5px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-nav-start:hover { background: #0369a1; }
+    .btn-nav-stop { background: #ef4444; color: #fff; width: 100%; margin-top: 10px; padding: 10px; border: none; border-radius: 5px; font-size: 11px; font-weight: 700; cursor: pointer; text-transform: uppercase; display: none; }
+
+    .info-panel { position: absolute; bottom: 16px; right: 12px; z-index: 10; width: 310px; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(10px); border: 1px solid rgba(56, 189, 248, 0.3); padding: 14px; border-radius: 8px; display: none; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6); }
+    .info-panel h2 { font-size: 15px; color: #38bdf8; margin-bottom: 6px; }
+    .info-panel p { font-size: 12px; line-height: 1.4; color: #cbd5e1; }
+    .dist-badge { display: inline-block; margin-top: 8px; background: #0284c7; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; color: #fff; }
+
+    .gps-status { margin-top: 8px; font-size: 10px; padding: 4px 8px; border-radius: 4px; background: rgba(255,255,255,0.05); color: #94a3b8; display: flex; align-items: center; gap: 6px; }
+    .gps-dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; display: inline-block; }
+    .gps-dot.active { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+    .destination-search{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:0 0 10px}
+    .destination-search input{min-width:0;width:100%;padding:9px 10px;border:1px solid rgba(56,189,248,.25);border-radius:5px;background:#0b1220;color:#f8fafc;font-size:12px;outline:none}
+    .destination-search input:focus{border-color:#38bdf8;box-shadow:0 0 0 2px rgba(56,189,248,.12)}
+    .destination-search button{padding:0 12px;border:0;border-radius:5px;background:#0284c7;color:#fff;font-size:11px;font-weight:800;cursor:pointer}
+    .destination-search button:hover{background:#0369a1}
+    .search-status{grid-column:1/-1;min-height:12px;color:#94a3b8;font-size:10px}
+    .turn-guidance{position:absolute;top:184px;left:12px;z-index:12;display:none;width:min(340px,calc(100vw - 24px));padding:15px;border:1px solid rgba(56,189,248,.3);border-radius:10px;background:rgba(15,23,42,.94);box-shadow:0 8px 24px rgba(0,0,0,.42);backdrop-filter:blur(10px)}
+    .turn-guidance.active{display:grid;grid-template-columns:52px minmax(0,1fr);align-items:center;gap:12px}
+    .turn-guidance-icon{display:grid;width:48px;height:48px;place-items:center;border-radius:10px;background:rgba(2,132,199,.22);color:#7dd3fc;font-size:30px;font-weight:800}
+    .turn-guidance-label{color:#94a3b8;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase}
+    .turn-guidance strong{display:block;margin-top:3px;color:#f8fafc;font-size:16px;line-height:1.2}
+    .turn-guidance p{margin-top:4px;color:#cbd5e1;font-size:11px}
+    .route-meta>div{flex:1;min-width:0;padding:8px;border-radius:6px;background:rgba(255,255,255,.04)}
+    .route-meta span{display:block;color:#94a3b8;font-size:9px;font-weight:700;letter-spacing:.6px}
+    .route-meta strong{display:block;margin-top:4px;color:#f8fafc;font-size:15px}
+    .eta-arrival{margin-top:8px;color:#94a3b8;font-size:10px}
+    #labels-container{position:fixed;inset:0;z-index:5;overflow:hidden;pointer-events:none}
+
+    .label { position: absolute; z-index: 5; transform: translate(-50%, -100%); color: #ffffff; font-size: 10px; font-weight: 600; padding: 3px 6px; background: rgba(15, 23, 42, 0.88); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 4px; pointer-events: none; white-space: nowrap; transition: opacity 0.2s; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+
+    @media (max-width: 650px) {
+      .demo-badge { display: none; }
+      .nav-box { width: calc(100% - 24px); top: auto; bottom: 100px; left: 12px; right: 12px; }
+      .info-panel { bottom: 100px; width: calc(100% - 24px); left: 12px; }
+    }
+    .nav-box.indoor-active .cam-mode-box,
+    .nav-box.indoor-active .input-group,
+    .nav-box.indoor-active .scenario-panel,
+    .nav-box.indoor-active #btn-start-nav,
+    .nav-box.indoor-active #btn-stop-nav,
+    .nav-box.indoor-active .gps-status,
+    .nav-box.indoor-active .indoor-note,
+    .info-panel.indoor-active { display: none !important; }
+
+    #loading-screen{position:fixed;inset:0;z-index:100;background:#070b12;display:grid;place-items:center;transition:opacity .45s ease,visibility .45s ease}
+    #loading-screen.hidden{opacity:0;visibility:hidden;pointer-events:none}
+    .loader-card{text-align:center;width:min(360px,calc(100vw - 40px));padding:28px;border:1px solid rgba(56,189,248,.25);border-radius:18px;background:rgba(15,23,42,.9);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+    .loader-mark{width:58px;height:58px;margin:0 auto 14px;border-radius:16px;display:grid;place-items:center;background:#0284c7;font-weight:900;font-size:18px;box-shadow:0 0 30px rgba(2,132,199,.35)}
+    .loader-card h2{font-size:22px;color:#fff}.loader-card p{font-size:12px;color:#94a3b8;margin-top:6px}
+    .loader-bar{height:4px;background:#1e293b;border-radius:999px;margin-top:18px;overflow:hidden}.loader-bar span{display:block;height:100%;width:70%;background:#38bdf8;border-radius:999px;animation:load 1.2s ease-in-out infinite}
+    @keyframes load{0%{transform:translateX(-100%)}100%{transform:translateX(180%)}}
+    .demo-badge{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:12;font-size:9px;font-weight:800;letter-spacing:1px;color:#bae6fd;background:rgba(8,47,73,.78);border:1px solid rgba(56,189,248,.3);padding:6px 10px;border-radius:999px;backdrop-filter:blur(8px)}
+    .brand-row{display:flex;align-items:center;gap:8px}.brand-dot{width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 10px #22c55e}.header h1{font-size:17px}
+    .panel-kicker{font-size:9px;letter-spacing:1.2px;color:#94a3b8;font-weight:800;margin-bottom:4px}
+    .route-meta{display:flex;gap:8px;margin-top:10px}.route-meta>div{flex:1;background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:7px 9px}.route-meta span{display:block;font-size:8px;color:#64748b;font-weight:700}.route-meta strong{display:block;font-size:11px;color:#e2e8f0;margin-top:2px}
+    .kpi-strip{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);z-index:10;display:flex;gap:5px;background:rgba(15,23,42,.88);border:1px solid rgba(56,189,248,.18);padding:6px;border-radius:10px;backdrop-filter:blur(10px)}
+    .kpi-strip div{min-width:74px;padding:6px 8px;text-align:center;border-radius:7px;background:rgba(255,255,255,.035)}.kpi-strip span{display:block;font-size:8px;color:#38bdf8;font-weight:900}.kpi-strip b{display:block;font-size:9px;color:#cbd5e1;margin-top:2px}
+    .indoor-tools{display:grid;grid-template-columns:1fr 92px;gap:6px;margin-top:8px}.btn-interior{width:100%;padding:8px;background:#166534;border:1px solid rgba(134,239,172,.4);border-radius:5px;color:#f0fdf4;font-size:10px;font-weight:800;cursor:pointer}.btn-interior:disabled{opacity:.45;cursor:not-allowed}.indoor-tools select{min-width:0;padding:7px;background:#1e293b;border:1px solid rgba(255,255,255,.15);border-radius:5px;color:#fff;font-size:11px}.indoor-tools #select-room{grid-column:1/-1}.indoor-note{font-size:9px;line-height:1.35;color:#94a3b8;margin-top:6px}.indoor-banner{position:absolute;left:50%;top:60px;transform:translateX(-50%);z-index:10;padding:7px 11px;border:1px solid rgba(134,239,172,.35);border-radius:6px;background:rgba(20,83,45,.88);color:#dcfce7;font-size:10px;font-weight:700;white-space:nowrap;display:none}.indoor-banner.active{display:block}
+    .demo-notice{position:absolute;inset:0 0 auto;z-index:31;height:32px;display:flex;align-items:center;justify-content:center;gap:10px;padding:0 12px;background:#ad1825;color:#fff;font-size:10px;font-weight:700}.demo-notice strong{font-size:9px;letter-spacing:.7px}.demo-notice a{color:#fff;text-decoration:underline;text-underline-offset:2px}.portal-header{position:absolute;top:32px;left:0;right:0;z-index:30;min-height:68px;display:flex;align-items:center;gap:26px;padding:0 30px;background:#171717;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.28)}.portal-brand{display:flex;align-items:center;gap:10px;min-width:220px;color:#fff;text-decoration:none}.portal-mark{width:38px;height:38px;display:grid;place-items:center;border:2px solid #c12731;border-radius:50%;color:#fff;font-size:12px;font-weight:900}.portal-brand strong{display:block;font-size:14px}.portal-brand small{display:block;margin-top:2px;color:#b8b8b8;font-size:9px}.portal-links{display:flex;align-items:center;justify-content:center;gap:clamp(12px,2vw,28px);flex:1}.portal-links a{color:#e9e9e9;text-decoration:none;font-size:11px;font-weight:700;white-space:nowrap}.portal-links a:hover,.portal-links a[aria-current="page"]{color:#fff;text-decoration:underline;text-decoration-color:#c12731;text-decoration-thickness:2px;text-underline-offset:7px}.portal-cta{flex:none;padding:10px 14px;border-radius:4px;background:#b51c28;color:#fff;text-decoration:none;font-size:10px;font-weight:800}.portal-cta:hover{background:#981722}.header{top:112px}.nav-box{top:108px}.nav-panel-toggle{top:116px}.demo-badge{display:none}.indoor-banner{top:108px}
+    @media(max-width:900px){.portal-header{gap:12px;padding:0 16px}.portal-brand{min-width:180px}.portal-links{min-width:0;justify-content:flex-start;gap:12px;overflow-x:auto;touch-action:pan-x}.portal-links button{font-size:10px}}
+    @media(max-width:650px){.demo-notice{height:auto;min-height:42px;display:grid;grid-template-columns:1fr auto 1fr;gap:2px 8px;padding:5px 10px;font-size:8px;line-height:1.15}.demo-notice strong{grid-column:1;grid-row:1;font-size:8px;white-space:nowrap}.demo-notice a{grid-column:3;grid-row:1;justify-self:end;white-space:nowrap}.demo-notice span{grid-column:1/-1;grid-row:2;text-align:center}.portal-header{top:42px;min-height:58px;padding:0 12px}.portal-brand{min-width:0;flex:1}.portal-brand strong{font-size:12px}.portal-mark{width:32px;height:32px}.portal-links{display:none}.portal-cta{padding:9px 10px;font-size:9px}.header{top:111px;left:10px}.nav-panel-toggle{top:103px;right:12px}.indoor-banner{top:150px;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis}}
+    @media(max-width:650px){.kpi-strip{left:12px;right:12px;bottom:12px;transform:none;justify-content:space-between}.kpi-strip div{min-width:0;flex:1}.header{top:111px;left:10px}.header p{display:none}.nav-box{top:auto;bottom:105px}.nav-panel-toggle{top:103px;right:12px}.info-panel{bottom:105px}.indoor-banner{top:150px;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis}}
+    .portal-links button{padding:0;border:0;background:none;color:#e9e9e9;font:inherit;font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer}.portal-links button:hover,.portal-links button[aria-current="page"]{color:#fff;text-decoration:underline;text-decoration-color:#c12731;text-decoration-thickness:2px;text-underline-offset:7px}
+    .student-help-page{max-width:1100px;margin:0 auto}.student-help-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(220px,.8fr);gap:24px;margin-top:24px}.student-chat{display:flex;min-height:520px;flex-direction:column;overflow:hidden;border:1px solid var(--portal-line);border-radius:14px;background:#071225;box-shadow:0 18px 44px rgba(0,0,0,.22)}.student-chat-head{display:flex;align-items:center;gap:12px;padding:17px 20px;border-bottom:1px solid var(--portal-line);background:#0a1730}.student-chat-mark{display:grid;width:40px;height:40px;place-items:center;border-radius:12px;background:#0c749e;color:#fff;font-size:19px}.student-chat-head strong{display:block;color:#f8fafc;font-size:14px}.student-chat-head span{display:block;margin-top:3px;color:#9fb0c7;font-size:10px}.student-chat-messages{display:flex;min-height:220px;flex:1;flex-direction:column;gap:12px;overflow-y:auto;padding:18px;overscroll-behavior:contain;touch-action:pan-y}.student-chat-message{max-width:88%;padding:11px 13px;border:1px solid rgba(148,163,184,.14);border-radius:12px;background:#101f38;color:#dbe5f3;font-size:12px;line-height:1.6;white-space:pre-line;overflow-wrap:anywhere}.student-chat-message.user{align-self:flex-end;border-color:rgba(56,189,248,.25);background:#0c3d5b;color:#f0f9ff}.student-chat-message a{color:#7dd3fc;text-decoration:underline;text-underline-offset:2px}.student-chat-action{display:inline-flex;margin-top:9px;padding:7px 10px;border:1px solid rgba(56,189,248,.35);border-radius:6px;background:#075985;color:#f0f9ff;font:inherit;font-size:10px;font-weight:800;cursor:pointer}.student-chat-action:hover{background:#0369a1}.student-chat-prompts{display:flex;flex-wrap:wrap;gap:7px;padding:0 16px 12px}.student-chat-prompts button{padding:7px 9px;border:1px solid rgba(148,163,184,.24);border-radius:999px;background:#0d1b31;color:#cbd5e1;font:inherit;font-size:10px;cursor:pointer}.student-chat-prompts button:hover{border-color:#38bdf8;color:#fff}.student-chat-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:13px 16px;border-top:1px solid var(--portal-line);background:#0a1730}.student-chat-form input{min-width:0;height:42px;padding:0 12px;border:1px solid #31435d;border-radius:7px;background:#071225;color:#f8fafc;font:inherit;font-size:12px;outline:none;touch-action:auto}.student-chat-form input:focus{border-color:#38bdf8;box-shadow:0 0 0 2px rgba(56,189,248,.13)}.student-chat-form button{padding:0 16px;border:0;border-radius:7px;background:#087da8;color:#fff;font-size:11px;font-weight:900;cursor:pointer}.student-chat-note{padding:0 16px 13px;background:#0a1730;color:#8798b3;font-size:9px;line-height:1.5}.student-help-aside{align-self:start;padding:20px;border:1px solid var(--portal-line);border-radius:14px;background:#0a1730}.student-help-aside h2{color:#f8fafc;font-size:16px}.student-help-aside p{margin-top:8px;color:var(--portal-muted);font-size:11px;line-height:1.6}.student-help-aside ul{display:grid;gap:10px;margin:16px 0 20px;padding:0;list-style:none}.student-help-aside li{display:flex;gap:9px;color:#d3deed;font-size:11px;line-height:1.45}.student-help-aside li span{color:#fb7185}.student-help-aside a{color:#7dd3fc;font-size:11px;text-underline-offset:3px}
+    @media(max-width:650px){.student-help-layout{grid-template-columns:1fr;gap:14px;margin-top:18px}.student-chat{min-height:490px}.student-chat-message{max-width:95%}.student-help-aside{padding:16px}}
+    .erp-page{max-width:1180px;margin:0 auto}.erp-banner{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:20px;margin:18px 0 20px;padding:26px 28px;border:1px solid rgba(56,189,248,.24);border-radius:16px;background:radial-gradient(ellipse at 90% 10%,rgba(14,116,144,.35),transparent 42%),linear-gradient(120deg,#0a1730,#101d36);box-shadow:0 18px 42px rgba(0,0,0,.2)}.erp-banner::after{position:absolute;right:10%;bottom:-100px;width:260px;height:220px;border:1px solid rgba(56,189,248,.13);border-radius:50%;content:"";box-shadow:0 0 0 22px rgba(56,189,248,.025),0 0 0 44px rgba(56,189,248,.025);pointer-events:none}.erp-banner h2{margin-top:6px;color:#f8fafc;font-size:clamp(22px,3vw,34px)}.erp-banner p{max-width:620px;margin-top:8px;color:#a8b7ca;font-size:12px;line-height:1.6}.erp-badge,.erp-status-badge{display:inline-flex;align-items:center;gap:7px;width:max-content;padding:7px 10px;border:1px solid rgba(250,204,21,.25);border-radius:999px;background:rgba(113,63,18,.24);color:#fde68a;font-size:9px;font-weight:900;letter-spacing:.7px;text-transform:uppercase}.erp-badge::before{width:7px;height:7px;border-radius:50%;background:#fbbf24;content:""}.erp-identity{position:relative;z-index:1;flex:none;padding:15px 18px;border:1px solid rgba(148,163,184,.2);border-radius:12px;background:rgba(5,14,32,.7);color:#94a3b8;font-size:10px;line-height:1.7}.erp-identity strong{display:block;color:#f8fafc;font-size:13px}.erp-layout{display:grid;grid-template-columns:205px minmax(0,1fr);align-items:start;gap:18px}.erp-sidebar{position:sticky;top:16px;display:grid;gap:5px;padding:10px;border:1px solid var(--portal-line);border-radius:12px;background:#08152a}.erp-sidebar-label{padding:8px 9px 5px;color:#7688a4;font-size:8px;font-weight:900;letter-spacing:1px;text-transform:uppercase}.erp-tab{display:flex;align-items:center;gap:9px;padding:10px;border:1px solid transparent;border-radius:7px;background:transparent;color:#aebbd0;font:inherit;font-size:11px;font-weight:700;text-align:left;cursor:pointer}.erp-tab span{width:18px;color:#38bdf8;text-align:center}.erp-tab:hover,.erp-tab[aria-selected="true"]{border-color:rgba(56,189,248,.2);background:#10233e;color:#f8fafc}.erp-content{min-width:0}.erp-view{display:none}.erp-view.active{display:block}.erp-view-title{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:0 0 15px}.erp-view-title h2{color:#f8fafc;font-size:20px}.erp-view-title p{margin-top:5px;color:#94a3b8;font-size:11px;line-height:1.5}.erp-live-note{max-width:260px;color:#8192ac;font-size:9px;line-height:1.5;text-align:right}.erp-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}.erp-stat{padding:14px;border:1px solid var(--portal-line);border-radius:10px;background:linear-gradient(145deg,#0c1b33,#08152a)}.erp-stat span{display:block;color:#91a2ba;font-size:9px;font-weight:800;letter-spacing:.5px;text-transform:uppercase}.erp-stat strong{display:block;margin-top:9px;color:#f8fafc;font-size:17px}.erp-stat small{display:block;margin-top:4px;color:#70839f;font-size:9px}.erp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.erp-card{padding:17px;border:1px solid var(--portal-line);border-radius:11px;background:#0a1730}.erp-card-kicker{color:#38bdf8;font-size:9px;font-weight:900;letter-spacing:.7px;text-transform:uppercase}.erp-card h3{margin-top:7px;color:#f8fafc;font-size:14px}.erp-card p{margin-top:7px;color:#9dadc4;font-size:10px;line-height:1.6}.erp-card .student-chat-action{margin-top:12px}.erp-card--admissions{border-color:rgba(250,69,98,.24);background:linear-gradient(145deg,rgba(89,18,39,.4),#0a1730)}.erp-card--ai{border-color:rgba(56,189,248,.23);background:linear-gradient(145deg,rgba(8,67,91,.45),#0a1730)}.erp-table-wrap{overflow:auto;border:1px solid var(--portal-line);border-radius:10px;background:#09162b;touch-action:pan-x pan-y}.erp-table{width:100%;border-collapse:collapse;text-align:left}.erp-table th,.erp-table td{padding:12px 13px;border-bottom:1px solid rgba(148,163,184,.12);color:#cbd5e1;font-size:10px;line-height:1.45;vertical-align:top}.erp-table th{background:#101f38;color:#93a4bc;font-size:8px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;white-space:nowrap}.erp-table tr:last-child td{border-bottom:0}.erp-table td strong{color:#f1f5f9}.erp-table td small{display:block;margin-top:3px;color:#8192ac;font-size:9px}.erp-faculty-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:13px;padding:15px;border:1px solid var(--portal-line);border-radius:10px;background:#0a1730}.erp-faculty-card+.erp-faculty-card{margin-top:10px}.erp-avatar{display:grid;width:42px;height:42px;place-items:center;border:1px solid rgba(56,189,248,.25);border-radius:12px;background:#102842;color:#7dd3fc;font-size:13px;font-weight:900}.erp-faculty-card h3{color:#f8fafc;font-size:12px}.erp-faculty-card p{margin-top:4px;color:#94a3b8;font-size:9px;line-height:1.5}.erp-tag{padding:5px 7px;border:1px solid rgba(250,204,21,.2);border-radius:5px;background:rgba(113,63,18,.18);color:#fde68a;font-size:8px;font-weight:800;white-space:nowrap}.erp-process{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}.erp-step{padding:14px;border:1px solid var(--portal-line);border-radius:9px;background:#09162b}.erp-step span{display:grid;width:24px;height:24px;place-items:center;border-radius:50%;background:#12314a;color:#7dd3fc;font-size:10px;font-weight:900}.erp-step strong{display:block;margin-top:9px;color:#f8fafc;font-size:10px}.erp-step p{margin-top:5px;color:#91a2ba;font-size:9px;line-height:1.5}.erp-alert{margin-bottom:13px;padding:11px 13px;border:1px solid rgba(250,204,21,.2);border-radius:8px;background:rgba(113,63,18,.14);color:#e6d5a4;font-size:10px;line-height:1.5}.erp-link{display:inline-flex;align-items:center;gap:7px;margin-top:12px;color:#7dd3fc;font-size:10px;font-weight:800;text-underline-offset:3px}.erp-office-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.erp-office-card{padding:16px;border:1px solid var(--portal-line);border-radius:10px;background:#0a1730}.erp-office-card h3{color:#f8fafc;font-size:13px}.erp-office-card p{margin-top:6px;color:#9dadc4;font-size:10px;line-height:1.6}.erp-office-card .student-chat-action{margin-top:11px}
+    @media(max-width:850px){.erp-layout{grid-template-columns:1fr}.erp-sidebar{position:static;display:flex;gap:5px;overflow-x:auto;touch-action:pan-x}.erp-sidebar-label{display:none}.erp-tab{flex:none}.erp-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.erp-process{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:650px){.erp-banner{align-items:flex-start;flex-direction:column;padding:19px}.erp-identity{width:100%}.erp-grid,.erp-office-list{grid-template-columns:1fr}.erp-view-title{align-items:flex-start;flex-direction:column}.erp-live-note{text-align:left}.erp-stats{gap:7px}.erp-stat{padding:11px}.erp-table th,.erp-table td{padding:10px}.erp-faculty-card{grid-template-columns:auto minmax(0,1fr)}.erp-faculty-card .erp-tag{grid-column:2;justify-self:start}.erp-process{gap:7px}.erp-step{padding:11px}}
+    .services-page{max-width:1180px;margin:0 auto}.services-hero{position:relative;overflow:hidden;margin:18px 0 24px;padding:30px;border:1px solid rgba(45,212,191,.24);border-radius:16px;background:radial-gradient(ellipse at 94% 12%,rgba(13,148,136,.28),transparent 42%),linear-gradient(120deg,#0a1730,#10243a);box-shadow:0 18px 42px rgba(0,0,0,.2)}.services-hero h1{max-width:700px;color:#f8fafc;font-size:clamp(26px,4vw,40px);line-height:1.08}.services-hero p{max-width:700px;margin-top:10px;color:#afbed0;font-size:12px;line-height:1.7}.services-trust{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}.services-trust span{padding:7px 10px;border:1px solid rgba(148,163,184,.17);border-radius:999px;background:rgba(5,14,32,.55);color:#d6e4ee;font-size:9px;font-weight:800}.services-trust span::before{margin-right:6px;color:#5eead4;content:"✓"}.service-group{margin:24px 0}.service-group-heading{display:flex;align-items:end;justify-content:space-between;gap:14px;margin-bottom:12px}.service-group-heading h2{color:#f8fafc;font-size:17px}.service-group-heading p{color:#91a2ba;font-size:10px}.service-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.service-card{position:relative;overflow:hidden;min-height:180px;padding:18px;border:1px solid var(--portal-line);border-radius:12px;background:linear-gradient(145deg,#0d1d36,#08152a);transition:transform .2s,border-color .2s,box-shadow .2s}.service-card:hover{transform:translateY(-3px);border-color:rgba(45,212,191,.35);box-shadow:0 14px 26px rgba(0,0,0,.2)}.service-card-icon{display:grid;width:38px;height:38px;place-items:center;border:1px solid rgba(45,212,191,.22);border-radius:11px;background:rgba(13,148,136,.13);color:#5eead4;font-size:17px}.service-card h3{margin-top:13px;color:#f8fafc;font-size:13px}.service-card p{margin-top:6px;color:#9dadc4;font-size:10px;line-height:1.6}.service-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.service-actions button,.service-actions a{padding:7px 9px;border:1px solid rgba(56,189,248,.24);border-radius:6px;background:#10233e;color:#c8f3ff;font:inherit;font-size:9px;font-weight:800;text-decoration:none;cursor:pointer}.service-actions button:hover,.service-actions a:hover{border-color:#5eead4;color:#fff}.service-disclaimer{margin:20px 0;padding:13px 15px;border:1px solid rgba(250,204,21,.18);border-radius:9px;background:rgba(113,63,18,.12);color:#d9cda9;font-size:10px;line-height:1.6}
+    @media(max-width:900px){.service-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:650px){.services-hero{padding:21px}.service-grid{grid-template-columns:1fr;gap:9px}.service-card{min-height:0;padding:15px}.service-group-heading{align-items:flex-start;flex-direction:column;gap:5px}}
+    .portal-cta{border:0;cursor:pointer;font:inherit;font-size:10px;font-weight:800}
+    .demo-pages{position:fixed;top:100px;right:0;bottom:0;left:0;z-index:25;display:none;overflow-y:auto;overscroll-behavior:contain;background:#f4f6f5;color:#17201e;touch-action:pan-y}
+    body[data-page]:not([data-page="map"]) .demo-pages{display:block}
+    body[data-page]:not([data-page="map"]) #canvas-container,
+    body[data-page]:not([data-page="map"]) #labels-container,
+    body[data-page]:not([data-page="map"]) #route-navigation,
+    body[data-page]:not([data-page="map"]) #btn-nav-panel-toggle,
+    body[data-page]:not([data-page="map"]) .header,
+    body[data-page]:not([data-page="map"]) .info-panel,
+    body[data-page]:not([data-page="map"]) #turn-guidance,
+    body[data-page]:not([data-page="map"]) .kpi-strip,
+    body[data-page]:not([data-page="map"]) .indoor-banner{display:none}
+    body[data-page]:not([data-page="map"]){background:#f4f6f5;color:#17201e}
+    .portal-page{display:none;min-height:100%;padding:48px clamp(22px,6vw,88px) 64px;touch-action:pan-y}
+    .portal-page.active{display:block}
+    .page-inner{width:min(1120px,100%);margin:0 auto}
+    .page-eyebrow{margin-bottom:12px;color:#a31d2a;font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase}
+    .demo-pages,.demo-pages *{touch-action:auto}
+    .page-title{max-width:850px;color:#17201e;font-size:48px;font-weight:750;line-height:1.04}
+    .page-intro{max-width:740px;margin-top:16px;color:#53615c;font-size:16px;line-height:1.65}
+    .page-rule{height:1px;margin:30px 0;background:#cbd4d0}
+    .team-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-top:1px solid #aebbb5;border-bottom:1px solid #aebbb5}
+    .team-member{min-height:120px;padding:22px 20px 20px 0;border-right:1px solid #cbd4d0}.team-member:not(:first-child){padding-left:20px}.team-member:last-child{border-right:0}
+    .team-member span{display:block;color:#69766f;font-size:10px;font-weight:800;letter-spacing:.9px;text-transform:uppercase}.team-member strong{display:block;margin-top:12px;color:#17201e;font-size:19px}
+    .team-photo{display:block;width:92px;height:92px;margin-bottom:16px;border:2px solid #fff;border-radius:50%;object-fit:cover;object-position:center 18%;box-shadow:0 2px 10px rgba(23,32,30,.18)}
+    .about-facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin-top:34px;background:#cbd4d0;border:1px solid #cbd4d0}
+    .about-fact{min-height:130px;padding:20px;background:#fff}.about-fact strong{display:block;color:#a31d2a;font-size:26px}.about-fact span{display:block;margin-top:8px;color:#53615c;font-size:12px;line-height:1.45}
+    .source-note{margin-top:24px;color:#68746f;font-size:11px;line-height:1.6}.source-note a,.source-link{color:#9c1b27;text-decoration-thickness:1px;text-underline-offset:3px}
+    .academic-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:30px;margin-top:34px}
+    .academic-group{padding-top:16px;border-top:3px solid #a31d2a}.academic-group h3{margin-bottom:12px;color:#17201e;font-size:17px}.academic-group ul{padding-left:18px;color:#53615c;font-size:13px;line-height:1.8}.academic-group li::marker{color:#a31d2a}
+    .admissions-layout{display:grid;grid-template-columns:minmax(260px,.85fr) minmax(300px,1fr);gap:clamp(28px,6vw,82px);align-items:start;margin-top:34px}
+    .admissions-copy h2{font-size:22px;color:#17201e}.admissions-copy p{margin-top:12px;color:#53615c;font-size:14px;line-height:1.7}.mock-login{padding:24px;background:#fff;border:1px solid #cbd4d0;border-top:4px solid #a31d2a;box-shadow:0 10px 30px rgba(23,32,30,.08)}
+    .mock-label{display:inline-block;margin-bottom:14px;padding:5px 8px;background:#fff0f0;color:#9c1b27;font-size:9px;font-weight:900;letter-spacing:.6px}
+    .mock-login h2{color:#17201e;font-size:21px}.mock-login>p{margin:7px 0 18px;color:#68746f;font-size:12px;line-height:1.5}
+    .mock-field{display:block;margin-top:12px;color:#46534e;font-size:11px;font-weight:700}.mock-field input{display:block;width:100%;height:40px;margin-top:6px;padding:0 11px;border:1px solid #cbd4d0;border-radius:3px;background:#f4f6f5;color:#65716c;font:inherit}.mock-login button{width:100%;height:42px;margin-top:18px;border:0;border-radius:3px;background:#9ca7a2;color:#fff;font-size:12px;font-weight:800;cursor:not-allowed}.mock-safety{margin-top:14px;color:#68746f;font-size:10px;line-height:1.5}
+    @media(max-width:900px){.academic-groups{grid-template-columns:repeat(2,minmax(0,1fr))}.about-facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:650px){.portal-links{position:absolute;top:100%;left:0;right:0;display:flex;justify-content:flex-start;gap:18px;height:38px;padding:0 12px;overflow-x:auto;background:#252525;touch-action:pan-x}.portal-links button{font-size:10px}.demo-pages{top:138px}.portal-page{padding:30px 18px 46px}.page-title{font-size:34px}.page-intro{font-size:14px}.team-list{grid-template-columns:1fr}.team-member,.team-member:not(:first-child){min-height:0;padding:16px 0;border-right:0;border-bottom:1px solid #cbd4d0}.team-member:last-child{border-bottom:0}.about-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.about-fact{min-height:112px;padding:14px}.about-fact strong{font-size:22px}.academic-groups{grid-template-columns:1fr;gap:22px}.admissions-layout{grid-template-columns:1fr;gap:24px}.mock-login{padding:18px}.header{top:149px;left:10px}.nav-panel-toggle{top:141px;right:12px}.indoor-banner{top:188px}}
+    :root{--portal-bg:#061126;--portal-panel:#0a1730;--portal-line:rgba(148,163,184,.24);--portal-muted:#a8b4c9;--portal-red:#fa4562}
+    body[data-page]:not([data-page="map"]){background:var(--portal-bg);color:#f8fafc}
+    body[data-page]:not([data-page="map"]) .demo-pages{top:100px;background:var(--portal-bg);color:#f8fafc}
+    .portal-header{position:fixed;top:32px;background:rgba(5,14,31,.94);border-bottom:1px solid rgba(148,163,184,.16);backdrop-filter:blur(14px)}
+    .portal-mark{border-color:var(--portal-red);box-shadow:0 0 18px rgba(250,69,98,.2)}
+    .portal-links button{color:#dbe4f2}.portal-links button:hover,.portal-links button[aria-current="page"]{color:#fff;text-decoration-color:var(--portal-red)}
+    .portal-cta{padding:12px 18px;border-radius:999px;background:linear-gradient(110deg,#fa4562,#df174b);box-shadow:0 8px 24px rgba(225,23,75,.25)}
+    .portal-cta:hover{background:linear-gradient(110deg,#ff6278,#e72256)}
+    .portal-page{padding:0;min-height:100%;color:#f8fafc}
+    .portal-page.active{display:block}
+    .page-inner{width:min(1120px,calc(100% - 48px))}
+    .page-eyebrow{color:var(--portal-red)}
+    .page-title{color:#f8fafc}
+    .page-intro{color:var(--portal-muted)}
+    .source-note{color:#8998b2}.source-note a,.source-link{color:#ff7185}
+    #page-about-us .page-inner{width:100%;max-width:none}
+    .landing-hero{position:relative;isolation:isolate;display:grid;min-height:450px;align-items:center;overflow:hidden;padding:48px max(24px,calc((100% - 1120px)/2));background:#071225 url("Galgotia%20image.jpeg") center 48%/cover no-repeat}
+    .landing-hero::before{position:absolute;z-index:-1;inset:0;background:linear-gradient(90deg,rgba(4,12,28,.97) 0%,rgba(4,12,28,.88) 34%,rgba(4,12,28,.3) 72%,rgba(4,12,28,.18) 100%),linear-gradient(0deg,rgba(4,12,28,.86),transparent 42%);content:""}
+    .hero-copy{width:min(520px,58%);padding:22px 0}
+    .hero-copy .page-eyebrow{font-size:11px;letter-spacing:2px}
+    .hero-title{max-width:510px;color:#fff;font-family:"Segoe Print","Bradley Hand",cursive;font-size:clamp(34px,4vw,54px);font-style:italic;font-weight:700;line-height:1.04}
+    .hero-title em{color:var(--portal-red);font-style:inherit}
+    .hero-underline{width:148px;height:4px;margin:17px 0 20px;border-radius:99px;background:var(--portal-red);transform:rotate(-5deg)}
+    .hero-copy .page-intro{max-width:420px;margin-top:0;font-size:14px;line-height:1.7}
+    .hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+    .hero-action{display:inline-flex;min-height:44px;align-items:center;justify-content:center;gap:9px;padding:0 20px;border:1px solid rgba(203,213,225,.7);border-radius:999px;background:rgba(4,12,28,.62);color:#fff;font:inherit;font-size:12px;font-weight:800;text-decoration:none;cursor:pointer;transition:transform .2s,background .2s,border-color .2s}
+    .hero-action:hover{transform:translateY(-2px);border-color:#fff;background:rgba(30,41,59,.8)}
+    .hero-action.primary{border-color:transparent;background:linear-gradient(110deg,#fa4562,#df174b);box-shadow:0 8px 24px rgba(225,23,75,.25)}
+    .hero-note{position:absolute;right:max(28px,calc((100% - 1120px)/2));bottom:34px;color:#fff;font-family:"Segoe Print","Bradley Hand",cursive;font-size:16px;font-style:italic;line-height:1.1;text-align:right;transform:rotate(-5deg)}
+    .about-content{padding:40px 0 30px;background:radial-gradient(ellipse at 100% 0,rgba(27,50,91,.2),transparent 48%),var(--portal-bg)}
+    .section-kicker{display:flex;align-items:center;gap:10px;margin:0 0 8px;color:var(--portal-red);font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase}
+    .section-kicker::before{width:30px;height:3px;background:var(--portal-red);content:""}
+    .section-title{color:#f8fafc;font-size:clamp(30px,4vw,44px);font-weight:850;letter-spacing:-1.2px;line-height:1.05}
+    .section-title em{color:var(--portal-red);font-style:normal}
+    .about-intro{max-width:620px;margin-top:10px;color:var(--portal-muted);font-size:13px;line-height:1.65}
+    .mission-panel{display:grid;grid-template-columns:1.05fr 1.35fr .85fr;align-items:center;margin-top:24px;border:1px solid var(--portal-line);border-radius:14px;background:linear-gradient(120deg,rgba(15,28,53,.86),rgba(7,17,37,.9));box-shadow:0 16px 42px rgba(0,0,0,.2)}
+    .mission-brand,.mission-points,.mission-tagline{padding:22px 26px}
+    .mission-brand{font-family:"Segoe Print","Bradley Hand",cursive;font-size:26px;font-style:italic}
+    .mission-brand strong{display:block;color:#fff;font-weight:600}
+    .mission-brand span{display:block;margin-top:5px;color:var(--portal-red);font-size:18px}
+    .mission-points{display:grid;gap:18px;border-right:1px solid var(--portal-line);border-left:1px solid var(--portal-line)}
+    .mission-item{display:grid;grid-template-columns:28px 1fr;gap:12px}
+    .mission-icon{color:#f8fafc;font-size:21px;text-align:center}
+    .mission-item h3{margin-bottom:3px;color:#f8fafc;font-size:13px}
+    .mission-item p{color:var(--portal-muted);font-size:10px;line-height:1.55}
+    .mission-tagline{color:#fff;font-family:"Segoe Print","Bradley Hand",cursive;font-size:21px;font-style:italic;line-height:1.18;text-align:center}
+    .mission-tagline span{display:block;margin:9px auto 0;width:110px;height:3px;background:var(--portal-red);transform:rotate(-9deg)}
+    .team-section{padding:10px 0 40px}
+    .team-heading{max-width:620px;margin-bottom:18px}
+    .team-heading .about-intro{margin-top:8px}
+    .team-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;border:0}
+    .team-member,.team-member:not(:first-child){position:relative;min-height:240px;overflow:hidden;padding:20px;border:1px solid rgba(148,163,184,.24);border-left:3px solid var(--portal-red);border-radius:12px;background:linear-gradient(145deg,rgba(16,31,59,.96),rgba(7,17,37,.98));box-shadow:0 14px 30px rgba(0,0,0,.18)}
+    .team-member::after{position:absolute;top:0;right:-30px;width:135px;height:150px;background:linear-gradient(145deg,transparent 42%,rgba(250,69,98,.07) 43%,transparent 61%);content:"";pointer-events:none}
+    .team-photo,.team-avatar{position:relative;z-index:1;display:grid;width:76px;height:76px;place-items:center;margin:0 0 16px;border:2px solid rgba(250,69,98,.85);border-radius:50%;background:linear-gradient(140deg,#fb7185,#7c2344);color:#fff;object-fit:cover;object-position:center 18%;font-size:24px;font-weight:800;box-shadow:0 0 20px rgba(250,69,98,.2)}
+    .team-member span{color:#fb7185;font-size:9px;letter-spacing:1.2px}
+    .team-member strong{margin-top:5px;color:#f8fafc;font-size:17px}
+    .team-member p{max-width:230px;margin-top:10px;color:var(--portal-muted);font-size:11px;line-height:1.5}
+    .member-arrow{position:absolute;right:18px;bottom:18px;display:grid;width:30px;height:30px;place-items:center;border:1px solid var(--portal-red);border-radius:50%;color:#fb7185;font-size:18px}
+    .portal-footer{border-top:1px solid rgba(148,163,184,.17);background:#050e20}
+    .footer-main{display:grid;grid-template-columns:1.5fr 1fr 1fr;align-items:center;gap:28px;padding:22px 0}
+    .footer-brand{display:flex;align-items:center;gap:12px}.footer-map-icon{color:var(--portal-red);font-size:35px}.footer-brand strong{display:block;color:#f8fafc;font-size:16px}.footer-brand small{display:block;margin-top:3px;color:var(--portal-muted);font-size:10px}
+    .footer-links{display:grid;grid-template-columns:repeat(2,max-content);gap:8px 24px}
+    .footer-links button{padding:0;border:0;background:none;color:var(--portal-muted);font:inherit;font-size:10px;text-align:left;cursor:pointer}.footer-links button:hover{color:#fff}
+    .footer-bottom{display:flex;justify-content:space-between;gap:14px;padding:12px 0 18px;border-top:1px solid rgba(148,163,184,.14);color:#7e8da7;font-size:9px}
+    .about-facts{gap:1px;background:var(--portal-line);border-color:var(--portal-line)}
+    .about-fact{background:#0a1730}.about-fact strong{color:var(--portal-red)}.about-fact span{color:var(--portal-muted)}
+    .about-gu-video{position:relative;overflow:hidden;margin:28px 0;border:1px solid var(--portal-line);border-radius:14px;background:#050e20;box-shadow:0 18px 44px rgba(0,0,0,.28)}
+    .about-gu-video video{display:block;width:100%;max-height:min(62vh,560px);aspect-ratio:16/9;object-fit:cover;background:#050e20}
+    .about-gu-video figcaption{padding:12px 16px;color:var(--portal-muted);font-size:11px}
+    .academic-group{border-top-color:var(--portal-red)}.academic-group h3{color:#f8fafc}.academic-group ul{color:var(--portal-muted)}
+    .admissions-copy h2{color:#f8fafc}.admissions-copy p{color:var(--portal-muted)}.mock-login{background:#0a1730;border-color:var(--portal-line)}.mock-login h2{color:#f8fafc}.mock-login>p,.mock-field{color:var(--portal-muted)}.mock-field input{border-color:var(--portal-line);background:#071225;color:#a8b4c9}.mock-safety{color:#8998b2}
+    @media(max-width:900px){.landing-hero{min-height:430px}.mission-panel{grid-template-columns:1fr 1.4fr}.mission-tagline{display:none}.team-list{gap:12px}.team-member,.team-member:not(:first-child){padding:17px}}
+    @media(max-width:650px){body[data-page]:not([data-page="map"]) .demo-pages{top:138px}.portal-header{position:fixed}.landing-hero{min-height:510px;align-items:end;padding:28px 22px 44px;background-position:58% center}.landing-hero::before{background:linear-gradient(0deg,rgba(4,12,28,.98) 0%,rgba(4,12,28,.86) 42%,rgba(4,12,28,.2) 100%)}.hero-copy{width:100%;padding:0}.hero-title{font-size:38px}.hero-copy .page-intro{font-size:13px}.hero-note{display:none}.about-content{padding:32px 0 20px}.page-inner{width:calc(100% - 36px)}.mission-panel{grid-template-columns:1fr;margin-top:18px}.mission-brand,.mission-points{padding:18px 20px}.mission-points{border:0;border-top:1px solid var(--portal-line)}.team-section{padding:6px 0 30px}.team-list{grid-template-columns:1fr;gap:12px}.team-member,.team-member:not(:first-child){min-height:0;padding:18px}.team-photo,.team-avatar{width:66px;height:66px}.footer-main{grid-template-columns:1fr 1fr;gap:18px;padding:20px 0}.footer-brand{grid-column:1/-1}.footer-bottom{display:grid;gap:7px}.about-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.about-fact{min-height:105px;padding:14px}.about-fact strong{font-size:20px}.academic-groups{grid-template-columns:1fr;gap:22px}.admissions-layout{grid-template-columns:1fr;gap:24px}.portal-page:not(#page-about-us){padding:28px 0 42px}.portal-page:not(#page-about-us) .page-inner{width:calc(100% - 36px)}}
+    @media(max-width:650px){.turn-guidance{position:fixed;top:153px;left:12px;width:calc(100% - 24px);padding:11px}.turn-guidance.active{grid-template-columns:42px minmax(0,1fr);gap:10px}.turn-guidance-icon{width:40px;height:40px;font-size:25px}.turn-guidance strong{font-size:14px}.turn-guidance p{font-size:10px}.info-panel{position:fixed;top:240px;right:12px;bottom:auto;left:12px;width:auto;padding:11px}.info-panel h2{font-size:13px}.info-panel>p:not(.eta-arrival){display:none}.route-meta{margin-top:8px}.route-meta>div{padding:6px}.route-meta strong{font-size:13px}.eta-arrival{margin-top:5px}}
+
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body data-page="about-us">
+  <div id="loading-screen">
+    <div class="loader-card">
+      <div class="loader-mark">GU</div>
+      <h2>GU Insider Map</h2>
+      <p>Loading interactive campus model…</p>
+      <div class="loader-bar"><span></span></div>
+    </div>
+  </div>
+  <div class="demo-notice" role="note">
+    <strong>UNOFFICIAL DEMO</strong>
+    <span>Student concept prototype • Not affiliated with or endorsed by Galgotias University</span>
+    <a href="https://www.galgotiasuniversity.edu.in" target="_blank" rel="noopener noreferrer">Official website ↗</a>
+  </div>
+  <header class="portal-header">
+    <a class="portal-brand" href="https://www.galgotiasuniversity.edu.in" target="_blank" rel="noopener noreferrer" aria-label="Visit the official Galgotias University website">
+      <span class="portal-mark" aria-hidden="true">GU</span>
+      <span><strong>Galgotias University</strong><small>Campus portal concept</small></span>
+    </a>
+    <nav class="portal-links" aria-label="Demo website navigation">
+      <button type="button" data-page-link="about-us" aria-current="page" onclick="showDemoPage('about-us')">About Us</button>
+      <button type="button" data-page-link="about-gu" onclick="showDemoPage('about-gu')">About GU</button>
+      <button type="button" data-page-link="academics" onclick="showDemoPage('academics')">Academics</button>
+      <button type="button" data-page-link="erp" aria-label="Open Student ERP" onclick="showDemoPage('erp')">ERP</button>
+      <button type="button" data-page-link="services" onclick="showDemoPage('services')">Services</button>
+      <button type="button" data-page-link="map" onclick="showDemoPage('map')">Campus Map</button>
+      <button type="button" data-page-link="student-help" onclick="showDemoPage('student-help')">Student Help</button>
+    </nav>
+    <button class="portal-cta" type="button" onclick="showDemoPage('erp')">STUDENT ERP</button>
+  </header>
+  <main id="demo-pages" class="demo-pages" aria-live="polite">
+    <section id="page-about-us" class="portal-page active" aria-labelledby="about-us-title">
+      <section class="landing-hero" aria-labelledby="about-us-title">
+        <div class="hero-copy">
+          <p class="page-eyebrow">ZeroDayz — Campus navigation prototype</p>
+          <h1 id="about-us-title" class="hero-title">Making every corner of campus <em>easier to find.</em></h1>
+          <div class="hero-underline" aria-hidden="true"></div>
+          <p class="page-intro">We are ZeroDayz, a student team exploring how a clear, interactive campus map can make finding places around Galgotias University easier for students, visitors, and staff.</p>
+          <div class="hero-actions">
+            <button class="hero-action primary" type="button" onclick="showDemoPage('map')"><span aria-hidden="true">▶</span> Explore Campus <span aria-hidden="true">→</span></button>
+          </div>
+        </div>
+        <p class="hero-note">Same Campus.<br>A new perspective. ↘</p>
+      </section>
+
+      <section class="about-content" aria-labelledby="about-us-section-title">
+        <div class="page-inner">
+          <p class="section-kicker">About Us</p>
+          <h2 id="about-us-section-title" class="section-title">About <em>Us</em></h2>
+          <p class="about-intro">We are ZeroDayz, a student team exploring how a clear, interactive campus map can make finding places around Galgotias University easier for students, visitors, and staff.</p>
+          <div class="mission-panel">
+            <div class="mission-brand"><strong>ZeroDayz</strong><span>We are building a better way to find your way.</span></div>
+            <div class="mission-points">
+              <div class="mission-item"><span class="mission-icon" aria-hidden="true">◎</span><div><h3>Our Mission</h3><p>To build a smart, interactive, and user-friendly campus navigation system for Galgotias University.</p></div></div>
+              <div class="mission-item"><span class="mission-icon" aria-hidden="true">♧</span><div><h3>Our Vision</h3><p>A seamless campus experience for every student, visitor, and staff member.</p></div></div>
+            </div>
+            <div class="mission-tagline">Explore<br>Navigate<br>Connect<span></span></div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="portal-footer">
+        <div class="page-inner">
+          <div class="footer-main">
+            <div class="footer-brand"><span class="footer-map-icon" aria-hidden="true">⌖</span><div><strong>GU Insider Map</strong><small>Find it. Understand it. Reach it.</small></div></div>
+            <nav class="footer-links" aria-label="Footer navigation">
+              <button type="button" onclick="showDemoPage('about-us')">About Us</button>
+              <button type="button" onclick="showDemoPage('about-gu')">About GU</button>
+              <button type="button" onclick="showDemoPage('academics')">Academics</button>
+              <button type="button" onclick="showDemoPage('erp')">Student ERP</button>
+              <button type="button" onclick="showDemoPage('services')">Services</button>
+              <button type="button" onclick="showDemoPage('map')">Campus Map</button>
+              <button type="button" onclick="showDemoPage('student-help')">Student Help</button>
+            </nav>
+            <a class="source-link" href="https://www.galgotiasuniversity.edu.in" target="_blank" rel="noopener noreferrer">Official university website ↗</a>
+          </div>
+          <div class="footer-bottom"><span>© 2026 GU Insider Map · ZeroDayz. All rights reserved.</span><span>Built for a smarter campus · Hackathon 2026</span></div>
+          <p class="source-note">Independent student concept for demonstration only. Not affiliated with or endorsed by Galgotias University.</p>
+        </div>
+      </footer>
+    </section>
+
+    <section id="page-student-help" class="portal-page" aria-labelledby="student-help-title">
+      <div class="page-inner student-help-page">
+        <p class="page-eyebrow">Your campus companion • Student support</p>
+        <h1 id="student-help-title" class="page-title">How can we help?</h1>
+        <p class="page-intro">Ask about campus places, directions, academics, admissions, or common student services. For official records and current policies, the assistant will point you to the university rather than guess.</p>
+        <div class="student-help-layout">
+          <section class="student-chat" aria-label="Student help chat">
+            <header class="student-chat-head"><span class="student-chat-mark" aria-hidden="true">✦</span><div><strong>GU Student Assistant</strong><span>Campus guide · Replies based on this demo’s information</span></div></header>
+            <div id="student-chat-messages" class="student-chat-messages" role="log" aria-live="polite" aria-relevant="additions">
+              <div class="student-chat-message">Hi! I can help you find places on campus, set a map destination, and point you toward academic and admissions resources. What do you need?</div>
+            </div>
+            <div class="student-chat-prompts" aria-label="Suggested questions">
+              <button type="button" data-chat-prompt="How do I get to the library?">Find the library</button>
+              <button type="button" data-chat-prompt="Where can I find admissions information?">Admissions help</button>
+              <button type="button" data-chat-prompt="Where can I check my exam timetable or results?">Exams and results</button>
+              <button type="button" data-chat-prompt="What can you help me with?">What can you do?</button>
+            </div>
+            <form id="student-chat-form" class="student-chat-form">
+              <input id="student-chat-input" type="text" maxlength="500" placeholder="Ask about campus, study, admissions…" aria-label="Message the student assistant" autocomplete="off" required>
+              <button type="submit">SEND</button>
+            </form>
+            <p class="student-chat-note">Demo assistant only—not connected to university records or live staff. Never share passwords, payment details, or private student information here.</p>
+          </section>
+          <aside class="student-help-aside">
+            <h2>Quick support</h2>
+            <p>Use the map for campus directions, or go directly to official university resources for current information.</p>
+            <button class="hero-action primary" type="button" onclick="showDemoPage('map')">Open campus map →</button>
+            <ul>
+              <li><span aria-hidden="true">⌖</span><span>Campus locations and walking routes</span></li>
+              <li><span aria-hidden="true">▤</span><span>Academic schools and programme overview</span></li>
+              <li><span aria-hidden="true">↗</span><span>Official admissions information</span></li>
+              <li><span aria-hidden="true">ⓘ</span><span>Guidance for portals, exams, fees, and student services</span></li>
+            </ul>
+            <a href="https://www.galgotiasuniversity.edu.in/" target="_blank" rel="noopener noreferrer">Visit the official university website ↗</a>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="page-about-gu" class="portal-page" aria-labelledby="about-gu-title">
+      <div class="page-inner">
+        <p class="page-eyebrow">University overview • Demo summary</p>
+        <h1 id="about-gu-title" class="page-title">About Galgotias University</h1>
+        <p class="page-intro">Galgotias University is located in Greater Noida, Uttar Pradesh, and is sponsored by the Smt. Shakuntala Educational and Welfare Society. The university’s public overview describes its focus on multidisciplinary education, research, innovation, and student development.</p>
+        <figure class="about-gu-video">
+          <video controls playsinline preload="metadata" poster="Galgotia%20image.jpeg" aria-label="Campus video about Galgotias University">
+            <source src="Vedio.mp4" type="video/mp4">
+            Your browser does not support the campus video.
+          </video>
+          <figcaption>Campus video • Galgotias University</figcaption>
+        </figure>
+        <div class="about-facts" aria-label="University facts from the official website">
+          <div class="about-fact"><strong>2011–12</strong><span>Academic session in which the university began operations</span></div>
+          <div class="about-fact"><strong>NAAC A+</strong><span>Accreditation stated on the university overview page</span></div>
+          <div class="about-fact"><strong>30K+</strong><span>Students, as listed in the university overview</span></div>
+          <div class="about-fact"><strong>200+</strong><span>Programmes across diploma, undergraduate, postgraduate, and PhD levels</span></div>
+        </div>
+        <p class="source-note">Facts summarized from the <a href="https://www.galgotiasuniversity.edu.in/p/about/vision-and-mission" target="_blank" rel="noopener noreferrer">official university overview and vision page</a>. Information can change; refer to the university for current details.</p>
+      </div>
+    </section>
+
+    <section id="page-academics" class="portal-page" aria-labelledby="academics-title">
+      <div class="page-inner">
+        <p class="page-eyebrow">Schools & disciplines • Demo summary</p>
+        <h1 id="academics-title" class="page-title">Academics</h1>
+        <p class="page-intro">The university lists schools and programmes across technology, business, law, health, sciences, and the creative and social disciplines. These examples are grouped for this prototype and are not a complete course catalogue.</p>
+        <div class="academic-groups">
+          <section class="academic-group"><h3>Technology & Engineering</h3><ul>
+            <li>School of Computer Science and Engineering</li><li>School of Artificial Intelligence</li><li>School of Engineering</li><li>School of Computer Applications & Technology</li><li>School of Defence Technology</li><li>School of Aviation, Logistics & Tourism Management</li><li>Galgotias Polytechnic</li>
+          </ul></section>
+          <section class="academic-group"><h3>Business, Law & Society</h3><ul>
+            <li>School of Business</li><li>School of Finance and Commerce</li><li>School of Law</li><li>School of Media & Communication Studies</li><li>School of Liberal Education</li><li>School of Languages</li><li>School of Skill Sciences & Entrepreneurship</li>
+          </ul></section>
+          <section class="academic-group"><h3>Health, Science & Design</h3><ul>
+            <li>School of Medical and Allied Sciences</li><li>School of Nursing</li><li>School of Allied Health Sciences</li><li>School of Agriculture</li><li>School of Biosciences and Technology</li><li>School of Basic Sciences</li><li>School of Design</li><li>School of Hospitality</li><li>School of Education</li><li>School of Forensic Sciences</li>
+          </ul></section>
+        </div>
+        <p class="source-note">School names are summarized from the <a href="https://www.galgotiasuniversity.edu.in/" target="_blank" rel="noopener noreferrer">official university website’s Schools menu</a>. Programme availability and eligibility should be confirmed through official channels.</p>
+      </div>
+    </section>
+
+    <section id="page-erp" class="portal-page" aria-labelledby="erp-title">
+      <div class="page-inner erp-page">
+        <p class="page-eyebrow">Student services • Academic operations</p>
+        <div class="erp-banner">
+          <div><span class="erp-badge">Student ERP · Interactive demo</span><h1 id="erp-title">Your student hub</h1><p>One place to explore timetable, faculty directory, examinations, admissions, and campus offices. Choose a section below to continue.</p></div>
+          <div class="erp-identity"><strong>Student workspace</strong>Guest preview · No account connected<br>Personal records are not shown</div>
+        </div>
+        <div class="erp-layout">
+          <nav class="erp-sidebar" aria-label="ERP sections">
+            <span class="erp-sidebar-label">Workspace</span>
+            <button type="button" class="erp-tab" data-erp-tab="overview" aria-selected="true" onclick="setErpView('overview')"><span>⌂</span>Overview</button>
+            <button type="button" class="erp-tab" data-erp-tab="timetable" aria-selected="false" onclick="setErpView('timetable')"><span>▦</span>Timetable</button>
+            <button type="button" class="erp-tab" data-erp-tab="faculty" aria-selected="false" onclick="setErpView('faculty')"><span>♙</span>Faculty directory</button>
+            <button type="button" class="erp-tab" data-erp-tab="exams" aria-selected="false" onclick="setErpView('exams')"><span>▤</span>Examinations</button>
+            <button type="button" class="erp-tab" data-erp-tab="admissions" aria-selected="false" onclick="setErpView('admissions')"><span>↗</span>Admissions</button>
+            <button type="button" class="erp-tab" data-erp-tab="offices" aria-selected="false" onclick="setErpView('offices')"><span>⌖</span>Offices & help</button>
+          </nav>
+          <div class="erp-content">
+            <section class="erp-view active" data-erp-view="overview" aria-labelledby="erp-overview-title">
+              <div class="erp-view-title"><div><h2 id="erp-overview-title">Welcome to your ERP preview</h2><p>Quick access to the services students look for most.</p></div><span class="erp-live-note">DEMO WORKSPACE · NOT CONNECTED TO THE UNIVERSITY ERP</span></div>
+              <div class="erp-stats" aria-label="ERP service summary">
+                <div class="erp-stat"><span>Academic schedule</span><strong>Timetable</strong><small>Sample layout · not live</small></div>
+                <div class="erp-stat"><span>People & support</span><strong>Faculty</strong><small>Directory integration preview</small></div>
+                <div class="erp-stat"><span>Assessment</span><strong>Exams</strong><small>Official records unavailable</small></div>
+                <div class="erp-stat"><span>Future students</span><strong>Admissions</strong><small>Official application link</small></div>
+              </div>
+              <div class="erp-grid">
+                <article class="erp-card"><span class="erp-card-kicker">Plan your day</span><h3>Class timetable</h3><p>Open the timetable view. Sample entries are marked as illustrative and are not a student’s actual schedule.</p><button class="student-chat-action" type="button" onclick="setErpView('timetable')">View timetable →</button></article>
+                <article class="erp-card"><span class="erp-card-kicker">People & places</span><h3>Faculty and office directory</h3><p>See the contact-card design and map links. Real staff contacts and room numbers must come from an approved university directory.</p><button class="student-chat-action" type="button" onclick="setErpView('faculty')">Open directory →</button></article>
+                <article class="erp-card"><span class="erp-card-kicker">Examination cell</span><h3>Exam services</h3><p>Review the exam-service checklist and where verified dates, hall tickets, results, and requests belong.</p><button class="student-chat-action" type="button" onclick="setErpView('exams')">Open exam centre →</button></article>
+                <article class="erp-card erp-card--admissions"><span class="erp-card-kicker">Admissions desk · AI Block</span><h3>Admissions & applications</h3><p>Admissions assistance is associated with AI Block in this campus prototype. Use the official admissions portal for applications and current requirements.</p><button class="student-chat-action" type="button" onclick="setErpView('admissions')">View admissions →</button></article>
+              </div>
+            </section>
+
+            <section id="page-services" class="portal-page" aria-labelledby="services-title">
+              <div class="page-inner services-page">
+                <p class="page-eyebrow">Student life • Campus services</p>
+                <div class="services-hero">
+                  <span class="erp-badge">Campus service directory · Prototype</span>
+                  <h1 id="services-title">Everything you need to thrive on campus.</h1>
+                  <p>Explore everyday university services—from finding a study space or meal to getting academic, health, transport, and student support. Use the campus map for mapped places and the ERP preview for academic workflows.</p>
+                  <div class="services-trust"><span>Campus-map linked</span><span>Student-first categories</span><span>Demo information clearly marked</span></div>
+                </div>
+
+                <section class="service-group" aria-labelledby="service-campus-title">
+                  <div class="service-group-heading"><h2 id="service-campus-title">Around campus</h2><p>Places and services you can explore on the interactive map.</p></div>
+                  <div class="service-grid">
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">⌕</span><h3>Library & study spaces</h3><p>Find the AI Block and Library, study areas, and academic buildings.</p><div class="service-actions"><button type="button" onclick="setErpMapDestination('AI Block & Library')">Find library on map →</button></div></article>
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">☕</span><h3>Food & dining</h3><p>Locate campus cafeterias, the Central Mess, and small cafe shops.</p><div class="service-actions"><button type="button" onclick="setErpMapDestination('Cafeteria 1')">Cafeteria 1</button><button type="button" onclick="setErpMapDestination('Central Mess')">Central Mess</button><button type="button" onclick="setErpMapDestination('Small Cafe Shops')">Cafe shops</button></div></article>
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">⌖</span><h3>Parking & visitor access</h3><p>Choose visitor, student, or faculty parking and start a walking route.</p><div class="service-actions"><button type="button" onclick="setErpMapDestination('Visitors Parking')">Visitor parking</button><button type="button" onclick="setErpMapDestination('Parking (Student)')">Student parking</button></div></article>
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">⇄</span><h3>Transport & campus directions</h3><p>Use the campus navigator for walking routes. Shuttle routes, timings, and availability must be confirmed through official university channels.</p><div class="service-actions"><button type="button" onclick="showDemoPage('map')">Open campus navigator →</button><button type="button" onclick="showDemoPage('student-help')">Ask student help</button></div></article>
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">⌂</span><h3>Hostel locations</h3><p>See the hostel landmarks included in the prototype map. Confirm allocation and policies with the university.</p><div class="service-actions"><button type="button" onclick="setErpMapDestination('Boys Hostel')">Boys Hostel</button><button type="button" onclick="setErpMapDestination('Girls Hostel')">Girls Hostel</button></div></article>
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">✚</span><h3>Medical & pharmacy</h3><p>Find the mapped OPD and Pharmacy landmarks. For emergencies, contact campus staff or call 112 in India.</p><div class="service-actions"><button type="button" onclick="setErpMapDestination('OPD Block')">Find OPD</button><button type="button" onclick="setErpMapDestination('Pharmacy Block')">Find Pharmacy</button></div></article>
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">⚽</span><h3>Sports & recreation</h3><p>Explore the Sports Complex, outdoor courts, and recreation landmarks shown on the campus map.</p><div class="service-actions"><button type="button" onclick="setErpMapDestination('Sports Complex')">Find Sports Complex →</button></div></article>
+                  </div>
+                </section>
+
+                <section class="service-group" aria-labelledby="service-student-title">
+                  <div class="service-group-heading"><h2 id="service-student-title">Student support</h2><p>Academic workflows and support channels for common student needs.</p></div>
+                  <div class="service-grid">
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">▦</span><h3>Timetable & faculty</h3><p>Preview timetable and faculty-directory sections. Personal schedules and real contacts need secure ERP data.</p><div class="service-actions"><button type="button" onclick="setErpView('timetable')">Open timetable →</button><button type="button" onclick="setErpView('faculty')">Faculty directory</button></div></article>
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">▤</span><h3>Examinations & results</h3><p>Find guidance for notices, hall tickets, exam schedules, results, and review requests.</p><div class="service-actions"><button type="button" onclick="setErpView('exams')">Open exam services →</button></div></article>
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">↗</span><h3>Admissions assistance</h3><p>Admissions support is associated with AI Block in this prototype; live application guidance is on the official portal.</p><div class="service-actions"><button type="button" onclick="setErpView('admissions')">Admissions hub →</button><a href="https://admissions.galgotiasuniversity.edu.in/" target="_blank" rel="noopener noreferrer">Official portal ↗</a></div></article>
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">▣</span><h3>ERP & IT support</h3><p>For login, student records, timetable corrections, or portal access, contact verified university support. Do not share credentials in this demo.</p><div class="service-actions"><button type="button" onclick="setErpView('offices')">ERP office information →</button></div></article>
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">♡</span><h3>Wellbeing & counselling</h3><p>For personal support, contact the university’s student affairs or counselling services through official channels. If there is immediate danger, contact campus staff or call 112.</p><div class="service-actions"><button type="button" onclick="showDemoPage('student-help')">Ask student help →</button></div></article>
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">✧</span><h3>Careers & placements</h3><p>Check official university announcements and placement channels for current events, internships, and opportunities.</p><div class="service-actions"><a href="https://www.galgotiasuniversity.edu.in/" target="_blank" rel="noopener noreferrer">University website ↗</a><button type="button" onclick="showDemoPage('student-help')">Ask student help →</button></div></article>
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">₹</span><h3>Fees & scholarships</h3><p>Find fee schedules, payment guidance, and scholarship notices through official university channels; amounts and eligibility may change.</p><div class="service-actions"><a href="https://www.galgotiasuniversity.edu.in/" target="_blank" rel="noopener noreferrer">Official information ↗</a><button type="button" onclick="setErpView('offices')">ERP office information</button></div></article>
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">◎</span><h3>Student life & activities</h3><p>Look for verified club, event, volunteering, and campus-activity announcements from university and student-affairs channels.</p><div class="service-actions"><a href="https://www.galgotiasuniversity.edu.in/" target="_blank" rel="noopener noreferrer">University website ↗</a></div></article>
+                    <article class="service-card"><span class="service-card-icon" aria-hidden="true">⚑</span><h3>Safety, accessibility & lost property</h3><p>Ask campus staff for immediate safety or accessibility assistance. This prototype has no live incident reporting or lost-and-found desk details.</p><div class="service-actions"><button type="button" onclick="showDemoPage('student-help')">Ask student help →</button></div></article>
+                  </div>
+                </section>
+                <p class="service-disclaimer">This is an independent student prototype, not a live university service directory. Locations, service availability, schedules, staff contacts, and office hours should be confirmed through official university channels. Do not use this site for emergency dispatch or submit private student information.</p>
+              </div>
+            </section>
+
+            <section class="erp-view" data-erp-view="timetable" aria-labelledby="erp-timetable-title">
+              <div class="erp-view-title"><div><h2 id="erp-timetable-title">Weekly timetable</h2><p>Preview of how a course schedule can be organized.</p></div><span class="erp-live-note">ILLUSTRATIVE SAMPLE · NOT AN OFFICIAL OR PERSONAL TIMETABLE</span></div>
+              <div class="erp-alert">Schedule rows below are demonstration data only. Live sections, times, rooms, and faculty assignments require an authenticated university ERP connection.</div>
+              <div class="erp-table-wrap"><table class="erp-table"><thead><tr><th>Day</th><th>Time</th><th>Class / activity</th><th>Faculty</th><th>Room</th><th>Status</th></tr></thead><tbody>
+                <tr><td><strong>Monday</strong></td><td>09:00–10:00</td><td>Lecture · Sample course</td><td>Faculty assignment pending</td><td>Confirm in ERP</td><td>Demo row</td></tr>
+                <tr><td><strong>Monday</strong></td><td>10:15–11:15</td><td>Practical · Sample lab</td><td>Faculty assignment pending</td><td>Confirm in ERP</td><td>Demo row</td></tr>
+                <tr><td><strong>Tuesday</strong></td><td>11:30–12:30</td><td>Tutorial · Sample course</td><td>Faculty assignment pending</td><td>Confirm in ERP</td><td>Demo row</td></tr>
+                <tr><td><strong>Wednesday</strong></td><td>14:00–15:00</td><td>Lecture · Sample course</td><td>Faculty assignment pending</td><td>Confirm in ERP</td><td>Demo row</td></tr>
+                <tr><td><strong>Thursday</strong></td><td>09:00–10:00</td><td>Project / mentoring</td><td>Faculty assignment pending</td><td>Confirm in ERP</td><td>Demo row</td></tr>
+                <tr><td><strong>Friday</strong></td><td>12:00–13:00</td><td>Seminar · Sample activity</td><td>Faculty assignment pending</td><td>Confirm in ERP</td><td>Demo row</td></tr>
+              </tbody></table></div>
+            </section>
+
+            <section class="erp-view" data-erp-view="faculty" aria-labelledby="erp-faculty-title">
+              <div class="erp-view-title"><div><h2 id="erp-faculty-title">Faculty directory</h2><p>Designed to help students find the right person, contact channel, and chamber.</p></div><span class="erp-live-note">DIRECTORY DATA NOT CONNECTED</span></div>
+              <div class="erp-alert">No actual teacher names, phone numbers, emails, or chamber assignments were provided. The sample cards below use non-deliverable placeholders; please do not use them as contact details.</div>
+              <article class="erp-faculty-card"><span class="erp-avatar" aria-hidden="true">FM</span><div><h3>Faculty Member · Demo Profile 01</h3><p>Department / school: connect verified ERP directory<br>Phone: +91-00000-00000 · Email: faculty.demo@example.invalid<br>Chamber: Not provided — confirm in official ERP</p></div><span class="erp-tag">SAMPLE ONLY</span></article>
+              <article class="erp-faculty-card"><span class="erp-avatar" aria-hidden="true">FM</span><div><h3>Faculty Member · Demo Profile 02</h3><p>Department / school: connect verified ERP directory<br>Phone: +91-00000-00000 · Email: faculty.demo@example.invalid<br>Chamber: Not provided — confirm in official ERP</p></div><span class="erp-tag">SAMPLE ONLY</span></article>
+              <article class="erp-faculty-card"><span class="erp-avatar" aria-hidden="true">FM</span><div><h3>Faculty Member · Demo Profile 03</h3><p>Department / school: connect verified ERP directory<br>Phone: +91-00000-00000 · Email: faculty.demo@example.invalid<br>Chamber: Not provided — confirm in official ERP</p></div><span class="erp-tag">SAMPLE ONLY</span></article>
+            </section>
+
+            <section class="erp-view" data-erp-view="exams" aria-labelledby="erp-exams-title">
+              <div class="erp-view-title"><div><h2 id="erp-exams-title">Examinations</h2><p>Exam resources and the records students expect in one place.</p></div><span class="erp-live-note">DATES, RESULTS & HALL TICKETS ARE NOT CONNECTED</span></div>
+              <div class="erp-alert">Exam dates, seating plans, admit cards, marks, and results are official and student-specific. This preview cannot display or confirm them; check the authenticated university ERP or official exam notices.</div>
+              <div class="erp-grid">
+                <article class="erp-card"><span class="erp-card-kicker">Before exams</span><h3>Exam timetable & notices</h3><p>View the current session’s published schedule, updates, and department notices in the official student ERP.</p></article>
+                <article class="erp-card"><span class="erp-card-kicker">Exam day</span><h3>Hall ticket & seating</h3><p>Download your hall ticket and confirm your room and seat only through the official authenticated system.</p></article>
+                <article class="erp-card"><span class="erp-card-kicker">After exams</span><h3>Results & marks</h3><p>Check published results, subject marks, and result notifications in your official student account.</p></article>
+                <article class="erp-card"><span class="erp-card-kicker">Student requests</span><h3>Rechecking & exam queries</h3><p>Follow the current exam-cell notice and its deadline for any review, correction, or examination request.</p></article>
+              </div>
+              <a class="erp-link" href="https://www.galgotiasuniversity.edu.in/" target="_blank" rel="noopener noreferrer">Find official university updates ↗</a>
+            </section>
+
+            <section class="erp-view" data-erp-view="admissions" aria-labelledby="erp-admissions-title">
+              <div class="erp-view-title"><div><h2 id="erp-admissions-title">Admissions centre</h2><p>Application guidance and campus help for prospective students.</p></div><span class="erp-live-note">OFFICIAL PORTAL FOR LIVE APPLICATIONS</span></div>
+              <div class="erp-alert">Deadlines, eligibility, fees, required documents, and application status change by programme and intake. Confirm every requirement on the official admissions portal.</div>
+              <article class="erp-card erp-card--admissions"><span class="erp-card-kicker">Admissions assistance · AI Block</span><h3>Find admissions help on campus</h3><p>For this campus prototype, admissions assistance is associated with AI Block. Office hours, desk number, and staff contacts have not been verified; confirm them with the university before visiting.</p><button class="student-chat-action" type="button" onclick="setErpMapDestination('AI Block & Library')">Navigate to AI Block →</button></article>
+              <div class="erp-process" aria-label="Illustrative admissions journey">
+                <div class="erp-step"><span>1</span><strong>Explore programmes</strong><p>Confirm the programme and intake on the official site.</p></div>
+                <div class="erp-step"><span>2</span><strong>Check requirements</strong><p>Review current eligibility, documents, and dates.</p></div>
+                <div class="erp-step"><span>3</span><strong>Apply officially</strong><p>Submit an application only through the official portal.</p></div>
+                <div class="erp-step"><span>4</span><strong>Track securely</strong><p>Use your private applicant account for status updates.</p></div>
+              </div>
+              <a class="erp-link" href="https://admissions.galgotiasuniversity.edu.in/" target="_blank" rel="noopener noreferrer">Open official admissions portal ↗</a>
+            </section>
+
+            <section class="erp-view" data-erp-view="offices" aria-labelledby="erp-offices-title">
+              <div class="erp-view-title"><div><h2 id="erp-offices-title">Offices & student help</h2><p>Find the right support channel before heading across campus.</p></div><span class="erp-live-note">ROOM NUMBERS & CONTACTS NEED OFFICIAL VERIFICATION</span></div>
+              <div class="erp-office-list">
+                <article class="erp-office-card"><h3>Admissions assistance · AI Block</h3><p>AI Block is the campus-map landmark associated with admissions support in this prototype. Confirm the exact desk, room, and hours with the university.</p><button class="student-chat-action" type="button" onclick="setErpMapDestination('AI Block & Library')">Navigate to AI Block →</button></article>
+                <article class="erp-office-card"><h3>ERP Office</h3><p>For portal access, timetable corrections, faculty-directory updates, and student-record issues, contact the university ERP office via verified official channels. Its phone, email, chamber, and independent map pin are not available in this demo.</p><a class="erp-link" href="https://www.galgotiasuniversity.edu.in/" target="_blank" rel="noopener noreferrer">University website ↗</a></article>
+                <article class="erp-office-card"><h3>Examination support</h3><p>For exam notices, hall tickets, results, or exam requests, use your official ERP account and current examination-cell notices.</p><button class="student-chat-action" type="button" onclick="setErpView('exams')">Open examination centre →</button></article>
+                <article class="erp-office-card"><h3>Student assistant</h3><p>Ask the campus assistant about mapped places, navigation, academics, and where to find official information.</p><button class="student-chat-action" type="button" onclick="showDemoPage('student-help')">Open student help →</button></article>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <div id="campus-map"></div>
+  <div id="canvas-container"></div>
+  
+  <div class="header">
+    <div class="brand-row"><span class="brand-dot"></span><h1>GU Insider Map</h1></div>
+    <p>3D Smart Campus Navigator • Hackathon Prototype</p>
+  </div>
+  
+  <div id="route-navigation" class="nav-box">
+    <h2>🗺️ Route Navigation</h2>
+    <div class="destination-search">
+      <input id="destination-search-input" type="search" list="campus-destination-options" placeholder="Search campus places…" aria-label="Search campus destinations" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();searchCampusDestination()}">
+      <datalist id="campus-destination-options"></datalist>
+      <button type="button" onclick="searchCampusDestination()">SEARCH</button>
+      <p id="destination-search-status" class="search-status" aria-live="polite"></p>
+    </div>
+    
+    <div class="cam-mode-box">
+      <div class="explore-grid">
+      <button id="btn-tour" class="btn-explore" onclick="toggleCampusTour()">🚁 AUTO CAMPUS TOUR</button>
+      <button id="btn-free" class="btn-explore active" onclick="toggleFreeExplore()">🕹️ FREE MOVE: ON</button>
+    </div>
+    <button id="btn-drone" class="btn-cam" onclick="toggleDroneView()">📷 Follow Navigator: OFF</button>
+    <div class="tour-progress" id="tour-progress"><span id="tour-progress-bar"></span></div>
+    <div class="mobile-hint">Desktop: drag / scroll / WASD • Phone: one-finger orbit, pinch zoom<br>Demo movement and ETA are accelerated for presentation</div>
+    </div>
+
+    <div class="input-group">
+      <label>Start Point</label>
+      <select id="select-from" onchange="onStartLocationChange()">
+        <option value="gps">📍 Live GPS Location</option>
+      </select>
+    </div>
+
+    <div class="input-group">
+      <label>Destination Target</label>
+      <select id="select-to" onchange="onDestinationChange()"></select>
+    </div>
+    <div class="indoor-tools">
+      <button id="btn-interior" class="btn-interior" onclick="toggleInteriorMode()" disabled>↳ EXPLORE INSIDE</button>
+      <select id="select-floor" aria-label="Building floor" onchange="changeInteriorFloor()" disabled><option value="0">Floor G</option></select>
+      <select id="select-room" aria-label="Room destination" onchange="changeInteriorRoom()" disabled><option value="">Choose a room</option></select>
+    </div>
+    <p class="indoor-note">Illustrative indoor layouts; confirm room locations with campus facilities.</p>
+
+    <div class="scenario-panel">
+      <h3>⚡ Real-time Scenarios</h3>
+      <div class="btn-grid">
+        <button id="btn-rain" class="btn-scenario" onclick="toggleRain()">🌧️ Rain</button>
+        <button id="btn-const" class="btn-scenario" onclick="toggleConstruction()">🚧 Construction</button>
+        <button id="btn-crowd" class="btn-scenario" onclick="toggleCrowd()">👥 Crowd</button>
+      </div>
+    </div>
+    
+    <button id="btn-start-nav" class="btn btn-nav-start" onclick="startRealtimeNavigation()">
+      <span>📍</span> START NAVIGATION
+    </button>
+    <button id="btn-stop-nav" class="btn btn-nav-stop" onclick="stopRealtimeNavigation()">
+      ⏹ STOP NAVIGATION
+    </button>
+    
+    <div class="gps-status">
+      <span id="gps-dot" class="gps-dot"></span>
+      <span id="gps-text">GPS Idle (Click Start to Track)</span>
+    </div>
+  </div>
+  
+  <button id="btn-nav-panel-toggle" class="nav-panel-toggle" type="button" onclick="toggleNavigationPanel()" aria-label="Hide Route Navigation" aria-controls="route-navigation" aria-expanded="true" title="Hide Route Navigation">×</button>
+
+  <div id="info-panel" class="info-panel">
+    <div class="panel-kicker">DESTINATION</div>
+    <h2 id="panel-title">Location</h2>
+    <p id="panel-desc">Description</p>
+    <div class="route-meta">
+      <div><span>DISTANCE</span><strong id="panel-dist">—</strong></div>
+      <div><span>ETA</span><strong id="panel-eta">—</strong></div>
+    </div>
+    <p id="panel-arrival" class="eta-arrival"></p>
+  </div>
+
+  <section id="turn-guidance" class="turn-guidance" aria-live="polite" aria-label="Turn-by-turn directions">
+    <span id="turn-guidance-icon" class="turn-guidance-icon" aria-hidden="true">↑</span>
+    <div><span class="turn-guidance-label">Next instruction</span><strong id="turn-guidance-title">Ready to navigate</strong><p id="turn-guidance-distance">Choose a destination and start navigation.</p></div>
+  </section>
+  <div class="kpi-strip">
+    <div><span>3D</span><b>Campus</b></div>
+    <div><span>AI</span><b>Routing</b></div>
+    <div><span>LIVE</span><b>Scenarios</b></div>
+    <div><span>XR</span><b>Drone View</b></div>
+  </div>
+  <div id="indoor-banner" class="indoor-banner" aria-live="polite"></div>
+  
+  <div id="labels-container"></div>
+
+  <script>
+    const demoPages = document.getElementById('demo-pages');
+    const servicesPage = document.getElementById('page-services');
+    if (servicesPage && servicesPage.closest('#page-erp')) demoPages.appendChild(servicesPage);
+
+    function showDemoPage(pageId) {
+      document.body.dataset.page = pageId;
+      const activePage = document.getElementById(`page-${pageId}`);
+      document.querySelectorAll('.portal-page').forEach(page => {
+        const isActive = page === activePage;
+        page.classList.toggle('active', isActive);
+        page.setAttribute('aria-hidden', String(!isActive));
+      });
+      document.querySelectorAll('[data-page-link]').forEach(link => {
+        if (link.dataset.pageLink === pageId) link.setAttribute('aria-current', 'page');
+        else link.removeAttribute('aria-current');
+      });
+      demoPages.scrollTop = 0;
+    }
+
+    function setErpView(viewId) {
+      const view = document.querySelector(`[data-erp-view="${viewId}"]`);
+      if (!view) return;
+      document.querySelectorAll('[data-erp-view]').forEach(section => section.classList.toggle('active', section === view));
+      document.querySelectorAll('[data-erp-tab]').forEach(tab => {
+        const selected = tab.dataset.erpTab === viewId;
+        tab.setAttribute('aria-selected', String(selected));
+      });
+      showDemoPage('erp');
+    }
+
+    function setErpMapDestination(destinationName) {
+      showDemoPage('map');
+      const search = document.getElementById('destination-search-input');
+      search.value = destinationName;
+      searchCampusDestination();
+    }
+
+    function addStudentChatMessage(text, sender, options = {}) {
+      const message = document.createElement('div');
+      message.className = `student-chat-message${sender === 'user' ? ' user' : ''}`;
+      message.textContent = text;
+      if (options.link) {
+        const link = document.createElement('a');
+        link.href = options.link.href;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = options.link.label;
+        message.append(document.createElement('br'), link);
+      }
+      if (options.erpView) {
+        const erpButton = document.createElement('button');
+        erpButton.type = 'button';
+        erpButton.className = 'student-chat-action';
+        erpButton.textContent = options.erpLabel || 'Open Student ERP section';
+        erpButton.addEventListener('click', () => setErpView(options.erpView));
+        message.append(document.createElement('br'), erpButton);
+      }
+      if (options.servicePage) {
+        const servicesButton = document.createElement('button');
+        servicesButton.type = 'button';
+        servicesButton.className = 'student-chat-action';
+        servicesButton.textContent = options.serviceLabel || 'Open campus services';
+        servicesButton.addEventListener('click', () => showDemoPage('services'));
+        message.append(document.createElement('br'), servicesButton);
+      }
+      const destinations = options.destinationOptions || (options.destinationId ? [options.destinationId] : []);
+      destinations.forEach(destinationId => {
+        const destination = locationsData[destinationId];
+        if (!destination) return;
+        const routeButton = document.createElement('button');
+        routeButton.type = 'button';
+        routeButton.className = 'student-chat-action';
+        routeButton.textContent = `Set ${destination.name} as map destination`;
+        routeButton.addEventListener('click', () => setErpMapDestination(destination.name));
+        message.append(document.createElement('br'), routeButton);
+      });
+      const messages = document.getElementById('student-chat-messages');
+      messages.appendChild(message);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function studentAssistantReply(question) {
+      const normalized = question.toLocaleLowerCase().replace(/[’']/g, '').replace(/[^a-z0-9\s&]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (/erp office|erp help|erp support/.test(normalized)) {
+        return { text: 'The ERP Office contact details and room pin are not connected to this demo. Use verified university channels for portal or record issues, and do not share passwords or one-time codes here.', erpView: 'offices', erpLabel: 'Open ERP Office information' };
+      }
+      if (/admission|apply|application|eligib|entrance|enrol|enroll/.test(normalized)) {
+        return { text: 'Admissions guidance for this campus prototype is associated with AI Block. Desk details and hours still need university confirmation. Current application requirements and status must be checked through the official admissions portal.', erpView: 'admissions', erpLabel: 'Open admissions in Student ERP', destinationId: 'ai_block', destinationName: 'AI Block & Library', link: { label: 'Open official admissions portal ↗', href: 'https://admissions.galgotiasuniversity.edu.in/' } };
+      }
+      const placeAliases = [
+        { name: 'AI Block & Library', aliases: ['library', 'ai block', 'artificial intelligence block'] },
+        { name: 'Visitors Parking', aliases: ['visitor parking', 'visitors parking'] },
+        { name: 'Parking (Student)', aliases: ['student parking'] },
+        { name: 'Parking (Faculty)', aliases: ['faculty parking'] },
+        { name: 'Gate Number 5', aliases: ['gate 5', 'gate number 5'] },
+        { name: 'Central Mess', aliases: ['mess', 'dining hall'] },
+        { name: 'Sports Complex', aliases: ['sports complex', 'sports centre', 'sports center'] },
+        { name: 'Boys Hostel', aliases: ['boys hostel', 'male hostel'] },
+        { name: 'Girls Hostel', aliases: ['girls hostel', 'female hostel'] }
+      ];
+      const place = Object.entries(locationsData).find(([, location]) => {
+        const locationName = location.name.toLocaleLowerCase().replace(/[^a-z0-9\s&]/g, ' ').replace(/\s+/g, ' ').trim();
+        return normalized.includes(locationName) && locationName.length > 3;
+      }) || placeAliases.map(alias => ({
+        match: Object.entries(locationsData).find(([, location]) => location.name === alias.name),
+        aliases: alias.aliases
+      })).find(candidate => candidate.match && candidate.aliases.some(alias => normalized.includes(alias)))?.match;
+      if (place) {
+        return {
+          text: `${place[1].name} is on the campus map. I can set it as your destination; then choose a starting point and start navigation for the route.`,
+          destinationId: place[0],
+          destinationName: place[1].name
+        };
+      }
+
+      if (/emergency|unsafe|danger|urgent|hurt|injur|medical emergency|security/.test(normalized)) {
+        return { text: 'If someone is in immediate danger, contact local campus security or nearby staff now. For an emergency in India, call 112. This demo cannot contact responders or provide live emergency support.' };
+      }
+      if (/service|services|health|medical|pharmacy|wellbeing|well being|counsel|mental health|career|placement|internship|it support|transport|bus|shuttle|lost and found|lost property|wifi|wi fi|internet|clubs|scholarship/.test(normalized)) {
+        return { text: 'The Services page brings together campus places, dining, parking, hostel landmarks, medical landmarks, sports, admissions, ERP, exams, and student support. Hours, contacts, and live availability are not connected to this demo.', servicePage: true, serviceLabel: 'Open campus services →' };
+      }
+      if (/park|parking/.test(normalized)) {
+        const choices = ['Visitors Parking', 'Parking (Student)', 'Parking (Faculty)']
+          .map(name => Object.entries(locationsData).find(([, location]) => location.name === name)?.[0])
+          .filter(Boolean);
+        return { text: 'The campus map includes visitor, student, and faculty parking. Choose the lot you need:', destinationOptions: choices };
+      }
+      if (/cafeteria|canteen|food|eat|dining|lunch/.test(normalized)) {
+        const choices = ['Cafeteria 1', 'Cafeteria 2', 'Central Mess', 'Small Cafe Shops']
+          .map(name => Object.entries(locationsData).find(([, location]) => location.name === name)?.[0])
+          .filter(Boolean);
+        return { text: 'The campus map includes these dining spots. Choose one to set it as your destination:', destinationOptions: choices };
+      }
+      if (/what can you|help with|capabilit|how do you work|everything/.test(normalized)) {
+        return { text: 'I can help find campus places and set a map destination, show common student services, explain the schools/programme overview, and point you to admissions and ERP resources. I cannot access student accounts, live timetables, grades, fee balances, policies, or contact staff.', servicePage: true, serviceLabel: 'Explore campus services →' };
+      }
+      if (/admission|apply|application|eligib|entrance|enrol|enroll/.test(normalized)) {
+        return { text: 'For current application steps, eligibility, deadlines, and programme availability, use the official admissions portal. Those details can change and are not connected to this demo.', link: { label: 'Open official admissions portal ↗', href: 'https://admissions.galgotiasuniversity.edu.in/' } };
+      }
+      if (/fee|fees|tuition|scholarship|payment|refund|installment|instalment|financial aid/.test(normalized)) {
+        return { text: 'I cannot see fee schedules, scholarship decisions, payment status, or refunds. Please check the official university website or contact the relevant university office for current, student-specific guidance.', link: { label: 'Open official university website ↗', href: 'https://www.galgotiasuniversity.edu.in/' } };
+      }
+      if (/student portal|login|password|reset password|erp|lms/.test(normalized)) {
+        return { text: 'I cannot access or troubleshoot university accounts. Use the official portal’s recovery/help options or contact university IT support. Never share your password or one-time codes in this chat.', erpView: 'offices', erpLabel: 'Open ERP Office information', link: { label: 'Open official university website ↗', href: 'https://www.galgotiasuniversity.edu.in/' } };
+      }
+      if (/exam|result|grade|marks|timetable|time table|attendance|assignment|course|syllabus|class schedule/.test(normalized)) {
+        return { text: 'Exam schedules, results, attendance, and course details are student-specific and are not available in this demo. Check your official university student portal or ask your department/academic office. Do not share your password here.', erpView: /timetable|time table|class schedule/.test(normalized) ? 'timetable' : 'exams', erpLabel: /timetable|time table|class schedule/.test(normalized) ? 'Open timetable preview' : 'Open exam centre', link: { label: 'Open official university website ↗', href: 'https://www.galgotiasuniversity.edu.in/' } };
+      }
+      if (/placement|internship|career|job/.test(normalized)) {
+        return { text: 'I do not have current placement or internship openings. Check official university career/placement announcements or contact the relevant university office for verified opportunities.' };
+      }
+      if (/hostel|accommodation|room/.test(normalized)) {
+        const choices = ['Boys Hostel', 'Girls Hostel']
+          .map(name => Object.entries(locationsData).find(([, location]) => location.name === name)?.[0])
+          .filter(Boolean);
+        return { text: 'I can point out the hostel locations included in this campus-map demo, but I cannot confirm room availability, hostel rules, fees, or allocation. Ask the university hostel office for current details. Choose a hostel to set it as your map destination:', destinationOptions: choices };
+      }
+      if (/school|academ|programme|program|degree|department|study|course/.test(normalized)) {
+        return { text: 'The Academics page groups the schools listed in this demo across Technology & Engineering, Business, Law & Society, and Health, Science & Design. Open Academics from the site navigation to see the overview. It is not a complete programme catalogue; confirm current courses and eligibility with the university.' };
+      }
+      if (/wifi|wi fi|internet|lost|found|transport|bus|shuttle|counsel|wellbeing|well being|mental health/.test(normalized)) {
+        return { text: 'I do not have verified live details for that student service. Please contact your department, student affairs, or the relevant university office through official channels. If this is urgent or safety-related, contact campus staff immediately.' };
+      }
+      return { text: 'I’m not sure about that, and I don’t want to guess. Try asking about a campus place, directions, admissions, academics, fees, exams, or student services. For current official information, contact the relevant university office or use the university website.', link: { label: 'Open official university website ↗', href: 'https://www.galgotiasuniversity.edu.in/' } };
+    }
+
+    function sendStudentChatMessage(question) {
+      const text = question.trim();
+      if (!text) return;
+      addStudentChatMessage(text, 'user');
+      const reply = studentAssistantReply(text);
+      addStudentChatMessage(reply.text, 'assistant', reply);
+    }
+
+    document.getElementById('student-chat-form').addEventListener('submit', event => {
+      event.preventDefault();
+      const input = document.getElementById('student-chat-input');
+      sendStudentChatMessage(input.value);
+      input.value = '';
+      input.focus();
+    });
+    document.querySelectorAll('[data-chat-prompt]').forEach(button => {
+      button.addEventListener('click', () => sendStudentChatMessage(button.dataset.chatPrompt));
+    });
+
+    function toggleNavigationPanel() {
+      const panel = document.getElementById('route-navigation');
+      const button = document.getElementById('btn-nav-panel-toggle');
+      panel.hidden = !panel.hidden;
+      const label = panel.hidden ? 'Show Route Navigation' : 'Hide Route Navigation';
+      button.textContent = panel.hidden ? '☰' : '×';
+      button.setAttribute('aria-label', label);
+      button.setAttribute('aria-expanded', String(!panel.hidden));
+      button.title = label;
+    }
+
+    // --- 1. SETUP RENDERER & SCENE ---
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    const appState = {
+      locationMode: 'demo',
+      geolocation: null,
+      routeReady: false
+    };
+    scene.background = new THREE.Color(0x090d16);
+    scene.fog = new THREE.FogExp2(0x090d16, 0.0018);
+
+    const camera = new THREE.PerspectiveCamera(90, window.innerWidth / window.innerHeight, 1, 1000);
+    camera.position.set(-110, 190, 230);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2.05;
+
+    let isDroneViewActive = false;
+    let isCampusTourActive = false;
+    let tourProgress = 0;
+    let lastTourFrame = 0;
+    let shouldFollowAfterTour = false;
+    let freeExplore = true;
+    const tourPoints = [
+      new THREE.Vector3(-195, 72, -225), new THREE.Vector3(-130, 58, -165),
+      new THREE.Vector3(-65, 50, -115), new THREE.Vector3(-35, 48, -65),
+      new THREE.Vector3(-35, 48, 12), new THREE.Vector3(10, 50, 38),
+      new THREE.Vector3(78, 56, 58), new THREE.Vector3(128, 58, 5),
+      new THREE.Vector3(195, 64, 40), new THREE.Vector3(245, 58, 130),
+      new THREE.Vector3(195, 58, 215), new THREE.Vector3(105, 62, 185),
+      new THREE.Vector3(35, 60, 120), new THREE.Vector3(-65, 56, 115),
+      new THREE.Vector3(-195, 72, -225)
+    ];
+    const campusTourCurve = new THREE.CatmullRomCurve3(tourPoints, true, 'catmullrom', 0.35);
+    const campusTourDuration = 90;
+    const tourLookAt = new THREE.Vector3();
+    const tourStartPosition = new THREE.Vector3();
+    const tourStartTarget = new THREE.Vector3();
+    const tourPathPosition = new THREE.Vector3();
+    let tourTransition = 1;
+    const followCameraPosition = new THREE.Vector3();
+    const followCameraTarget = new THREE.Vector3();
+    const followDirection = new THREE.Vector3();
+    const followYAxis = new THREE.Vector3(0, 1, 0);
+
+    function toggleCampusTour(){
+      isCampusTourActive = !isCampusTourActive;
+      const btn = document.getElementById('btn-tour');
+      const bar = document.getElementById('tour-progress');
+      if(isCampusTourActive){
+        isDroneViewActive = false;
+        shouldFollowAfterTour = true;
+        controls.enabled = false;
+        tourProgress = 0; lastTourFrame = performance.now();
+        tourTransition = 0;
+        tourStartPosition.copy(camera.position);
+        tourStartTarget.copy(controls.target);
+        document.getElementById('btn-drone').classList.remove('active');
+        document.getElementById('btn-drone').innerText = '📷 Follow Navigator: OFF';
+        btn.classList.add('active'); btn.innerText = '⏹ STOP CAMPUS TOUR';
+        bar.classList.add('active');
+      } else {
+        btn.classList.remove('active'); btn.innerText = '🚁 AUTO CAMPUS TOUR';
+        bar.classList.remove('active');
+        controls.enabled = freeExplore;
+        controls.target.copy(tourLookAt);
+      }
+    }
+
+    function toggleFreeExplore(){
+      freeExplore = !freeExplore;
+      controls.enabled = freeExplore && !isCampusTourActive && !isDroneViewActive;
+      const btn=document.getElementById('btn-free');
+      btn.classList.toggle('active',freeExplore);
+      btn.innerText = freeExplore ? '🕹️ FREE MOVE: ON' : '🔒 FREE MOVE: OFF';
+    }
+
+    function toggleDroneView() {
+      isDroneViewActive = !isDroneViewActive;
+      const btn = document.getElementById('btn-drone');
+      if (isDroneViewActive) {
+        if (isCampusTourActive) toggleCampusTour();
+        btn.innerText = '📷 Follow Navigator: ON';
+        btn.classList.add('active');
+        controls.enabled = false;
+      } else {
+        btn.innerText = '📷 Follow Navigator: OFF';
+        btn.classList.remove('active');
+        controls.enabled = freeExplore;
+      }
+    }
+
+    function updateCampusTour(){
+      if(!isCampusTourActive) return;
+      const now = performance.now();
+      const delta = Math.min((now - lastTourFrame) / 1000, 0.05);
+      lastTourFrame = now;
+      tourProgress = (tourProgress + delta / campusTourDuration) % 1;
+      tourTransition = Math.min(tourTransition + delta / 2.5, 1);
+      const easedTransition = tourTransition * tourTransition * (3 - 2 * tourTransition);
+      campusTourCurve.getPointAt(tourProgress, tourPathPosition);
+      camera.position.lerpVectors(tourStartPosition, tourPathPosition, easedTransition);
+      campusTourCurve.getPointAt((tourProgress + 0.035) % 1, tourLookAt);
+      tourLookAt.y = 0;
+      tourLookAt.lerp(tourStartTarget, 1 - easedTransition);
+      camera.lookAt(tourLookAt);
+      document.getElementById('tour-progress-bar').style.width=(tourProgress*100).toFixed(1)+'%';
+    }
+
+    function updateFollowCamera() {
+      if (!isDroneViewActive || !isNavigating) return;
+      followDirection.set(0, 0, 1).applyAxisAngle(followYAxis, userPedestrian.rotation.y);
+      followCameraPosition.set(
+        userPedestrian.position.x - followDirection.x * 30,
+        userPedestrian.position.y + 24,
+        userPedestrian.position.z - followDirection.z * 30
+      );
+      followCameraTarget.set(userPedestrian.position.x, 2.5, userPedestrian.position.z);
+      camera.position.lerp(followCameraPosition, 0.12);
+      controls.target.lerp(followCameraTarget, 0.16);
+      camera.lookAt(controls.target);
+    }
+
+    // --- 2. LIGHTING & ENVIRONMENT ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+    scene.add(ambientLight);
+    
+    const sun = new THREE.DirectionalLight(0xfff5ea, 1.1);
+    sun.position.set(-120, 160, 100);
+    sun.castShadow = true;
+    sun.shadow.mapSize.width = 2048; sun.shadow.mapSize.height = 2048;
+    const d = 220;
+    sun.shadow.camera.left = -d; sun.shadow.camera.right = d;
+    sun.shadow.camera.top = d; sun.shadow.camera.bottom = -d;
+    scene.add(sun);
+
+    const streetLights = [];
+
+    // --- 3. MATERIALS ---
+    function generateRoadTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#292b2e'; ctx.fillRect(0, 0, 512, 512);
+      for (let i = 0; i < 24000; i++) {
+        const shade = 26 + Math.random() * 28;
+        ctx.fillStyle = `rgba(${shade},${shade},${shade},${0.12 + Math.random() * 0.38})`;
+        const size = 0.5 + Math.random() * 2;
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, size, size);
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+      tex.anisotropy = 8;
+      return tex;
+    }
+
+    const matAsphaltTex = generateRoadTexture();
+    const matAsphalt = new THREE.MeshStandardMaterial({ map: matAsphaltTex, bumpMap: matAsphaltTex, bumpScale: 0.18, roughness: 0.94, metalness: 0.02 });
+    const matSidewalk = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.6 });
+    const matCurb = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.5 });
+    const matSandstone = new THREE.MeshStandardMaterial({ color: 0xd6c4a5, roughness: 0.7 });
+    const matJaali = new THREE.MeshStandardMaterial({ color: 0xedd9b8, roughness: 0.5 });
+    const matGlass = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.1, metalness: 0.9, transparent: true, opacity: 0.7 });
+    const matDark = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+    const matGround = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.95 });
+    const matRoof = new THREE.MeshStandardMaterial({ color: 0xd0d4dc, roughness: 0.82 });
+    const matGrass = new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.8 });
+    const matTreeFoliage = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.9 });
+    const matTreeTrunk = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 });
+    
+    // Boundary, Medical & Sports Materials
+    const matWall = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7 });
+    const matPillar = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 });
+    const matMedical = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.4 });
+    const matCrossRed = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+    const matCourtBB = new THREE.MeshStandardMaterial({ color: 0xc2410c, roughness: 0.5 });
+    const matTurf = new THREE.MeshStandardMaterial({ color: 0x16a34a, roughness: 0.7 });
+    const matPitch = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.8 });
+    const matWhiteLine = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const matCarBody = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.3, metalness: 0.6 });
+    const matBikeBody = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.4 });
+    const matWheel = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 });
+    const matBadmintonCourt = new THREE.MeshStandardMaterial({ color: 0x16734a, roughness: 0.85 });
+
+    const interactives = [];
+    const labels = [];
+    const locationsData = {};
+    const indoorBuildingIds = ['opd','pharmacy','ai_block','shops','a_block','cafe1','b_block','cafe2','mart','c_block','mess','boys_hostel','girls_hostel'];
+    const indoorState = { active: false, buildingId: null, floor: 0, group: null };
+
+    // --- 4. GROUND BASE & BOUNDARY WALL ---
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), matGround);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    function buildCampusBoundaryWall() {
+      const boundsGroup = new THREE.Group();
+      const wallHeight = 6, wallThick = 2;
+      const minX = -130, maxX = 170, minZ = -190, maxZ = 180;
+
+      function createWallSegment(x1, z1, x2, z2) {
+        const dx = x2 - x1, dz = z2 - z1;
+        const len = Math.hypot(dx, dz);
+        const wall = new THREE.Mesh(new THREE.BoxGeometry(len, wallHeight, wallThick), matWall);
+        wall.position.set((x1 + x2) / 2, wallHeight / 2, (z1 + z2) / 2);
+        wall.rotation.y = -Math.atan2(dz, dx);
+        wall.castShadow = true; wall.receiveShadow = true;
+        boundsGroup.add(wall);
+      }
+
+      function createPillar(x, z) {
+        const pillar = new THREE.Mesh(new THREE.BoxGeometry(3.5, wallHeight + 2, 3.5), matPillar);
+        pillar.position.set(x, (wallHeight + 2) / 2, z);
+        pillar.castShadow = true;
+        boundsGroup.add(pillar);
+      }
+
+      // Perimeter walls with openings for Gate 1, Gate 2 & Gate 5
+      createWallSegment(minX, minZ, -115, minZ);
+      createWallSegment(-75, minZ, maxX, minZ);
+      createWallSegment(maxX, minZ, maxX, 15);
+      createWallSegment(maxX, 45, maxX, maxZ);
+      createWallSegment(maxX, maxZ, minX, maxZ);
+      
+      // West perimeter broken into segments for Gate 2 Insertion (at Z = -135)
+      createWallSegment(minX, maxZ, minX, -115);
+      createWallSegment(minX, -155, minX, minZ);
+
+      // Boundary Pillars
+      [minX, maxX].forEach(x => [minZ, maxZ].forEach(z => createPillar(x, z)));
+      createPillar(-115, minZ); createPillar(-75, minZ);
+      createPillar(maxX, 15); createPillar(maxX, 45);
+      createPillar(minX, -115); createPillar(minX, -155);
+
+      scene.add(boundsGroup);
+    }
+    buildCampusBoundaryWall();
+
+    function buildLawnPad(x, z, width, depth) {
+      const lawn = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), matGrass);
+      lawn.rotation.x = -Math.PI / 2;
+      lawn.position.set(x, 0.05, z);
+      lawn.receiveShadow = true;
+      scene.add(lawn);
+    }
+
+    // --- 5. ROAD NETWORK ---
+    function buildConnectedRoadSegment(x1, z1, x2, z2, roadWidth = 14) {
+      const dx = x2 - x1; const dz = z2 - z1;
+      const length = Math.hypot(dx, dz);
+      if (length < 1) return;
+      
+      const angle = Math.atan2(dz, dx);
+      const midX = (x1 + x2) / 2;
+      const midZ = (z1 + z2) / 2;
+
+      const roadGroup = new THREE.Group();
+      roadGroup.position.set(midX, 0, midZ);
+      roadGroup.rotation.y = -angle;
+
+      const roadTex = matAsphaltTex.clone();
+      roadTex.repeat.set(Math.max(1, Math.round(length / 20)), 1);
+      roadTex.needsUpdate = true;
+      const roadMat = new THREE.MeshStandardMaterial({
+        map: roadTex, bumpMap: roadTex, bumpScale: matAsphalt.bumpScale,
+        roughness: matAsphalt.roughness, metalness: matAsphalt.metalness
+      });
+
+      const asphalt = new THREE.Mesh(new THREE.PlaneGeometry(length, roadWidth), roadMat);
+      asphalt.rotation.x = -Math.PI / 2;
+      asphalt.position.y = 0.2;
+      asphalt.receiveShadow = true;
+      roadGroup.add(asphalt);
+
+      const laneMarkingMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+      const dashLength = 6;
+      for (let x = -length / 2 + 10; x < length / 2 - 4; x += 18) {
+        const dash = new THREE.Mesh(new THREE.PlaneGeometry(dashLength, 0.22), laneMarkingMat);
+        dash.rotation.x = -Math.PI / 2;
+        dash.position.set(x, 0.23, 0);
+        roadGroup.add(dash);
+      }
+      const edgeLineGeometry = new THREE.PlaneGeometry(length, 0.18);
+      [-roadWidth / 2 + 0.8, roadWidth / 2 - 0.8].forEach(z => {
+        const edgeLine = new THREE.Mesh(edgeLineGeometry, laneMarkingMat);
+        edgeLine.rotation.x = -Math.PI / 2;
+        edgeLine.position.set(0, 0.23, z);
+        roadGroup.add(edgeLine);
+      });
+
+      const curbGeo = new THREE.BoxGeometry(length, 0.3, 0.8);
+      const curbLeft = new THREE.Mesh(curbGeo, matCurb); curbLeft.position.set(0, 0.25, -roadWidth/2 - 0.4); curbLeft.castShadow = true;
+      const curbRight = new THREE.Mesh(curbGeo, matCurb); curbRight.position.set(0, 0.25, roadWidth/2 + 0.4); curbRight.castShadow = true;
+      roadGroup.add(curbLeft); roadGroup.add(curbRight);
+
+      const sidewalkGeo = new THREE.BoxGeometry(length, 0.2, 3.5);
+      const walkLeft = new THREE.Mesh(sidewalkGeo, matSidewalk); walkLeft.position.set(0, 0.2, -roadWidth/2 - 2.3); walkLeft.receiveShadow = true;
+      const walkRight = new THREE.Mesh(sidewalkGeo, matSidewalk); walkRight.position.set(0, 0.2, roadWidth/2 + 2.3); walkRight.receiveShadow = true;
+      roadGroup.add(walkLeft); roadGroup.add(walkRight);
+
+      scene.add(roadGroup);
+
+      if (length > 30) {
+        buildStreetLamp(midX + Math.cos(angle + Math.PI/2)* (roadWidth/2 + 4), midZ + Math.sin(angle + Math.PI/2)* (roadWidth/2 + 4));
+      }
+    }
+
+    function buildIntersectionHub(x, z, radius = 9) {
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.22, 32), matDark);
+      hub.position.set(x, 0.11, z);
+      hub.receiveShadow = true;
+      scene.add(hub);
+      
+      const apron = new THREE.Mesh(new THREE.CylinderGeometry(radius + 2, radius + 2, 0.2, 32), matSidewalk);
+      apron.position.set(x, 0.1, z);
+      apron.receiveShadow = true;
+      scene.add(apron);
+    }
+
+    function buildStreetLamp(x, z) {
+      const group = new THREE.Group(); group.position.set(x, 0, z);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 12), matDark);
+      pole.position.y = 6; pole.castShadow = true; group.add(pole);
+      
+      const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.8), new THREE.MeshBasicMaterial({ color: 0xfef08a }));
+      bulb.position.set(0, 12, 0); group.add(bulb);
+
+      const pLight = new THREE.PointLight(0xfef08a, 0, 30);
+      pLight.position.set(0, 11, 0);
+      group.add(pLight);
+      streetLights.push(pLight);
+
+      scene.add(group);
+    }
+
+    function buildTree(x, z) {
+      const group = new THREE.Group(); group.position.set(x, 0, z);
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.8, 6), matTreeTrunk);
+      trunk.position.y = 3; trunk.castShadow = true; group.add(trunk);
+      
+      const leaves = new THREE.Mesh(new THREE.DodecahedronGeometry(3.5, 1), matTreeFoliage);
+      leaves.position.y = 7.5; leaves.castShadow = true; group.add(leaves);
+      scene.add(group);
+    }
+
+    function buildBench(x, z, rY = 0) {
+      const bench = new THREE.Group();
+      bench.position.set(x, 0, z);
+      bench.rotation.y = rY;
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(3, 0.2, 1), matTreeTrunk);
+      seat.position.y = 0.8; bench.add(seat);
+      const back = new THREE.Mesh(new THREE.BoxGeometry(3, 1, 0.1), matTreeTrunk);
+      back.position.set(0, 1.3, -0.45); bench.add(back);
+      scene.add(bench);
+    }
+
+    // VEHICLE BUILDERS
+    function createCarMesh() {
+      const car = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.3, 2), matCarBody);
+      body.position.y = 0.9; body.castShadow = true; car.add(body);
+      const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1, 1.8), matGlass);
+      cabin.position.set(-0.2, 1.9, 0); cabin.castShadow = true; car.add(cabin);
+      const wGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 12);
+      wGeo.rotateX(Math.PI / 2);
+      [[-1.2, 0.4, 1], [1.2, 0.4, 1], [-1.2, 0.4, -1], [1.2, 0.4, -1]].forEach(p => {
+        const w = new THREE.Mesh(wGeo, matWheel);
+        w.position.set(p[0], p[1], p[2]); car.add(w);
+      });
+      return car;
+    }
+
+    function createBikeMesh() {
+      const bike = new THREE.Group();
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.6, 0.4), matBikeBody);
+      frame.position.y = 0.6; bike.add(frame);
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.3), matDark);
+      seat.position.set(-0.3, 0.9, 0); bike.add(seat);
+      const wGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 12);
+      wGeo.rotateX(Math.PI / 2);
+      [[-0.6, 0.3, 0], [0.6, 0.3, 0]].forEach(p => {
+        const w = new THREE.Mesh(wGeo, matWheel);
+        w.position.set(p[0], p[1], p[2]); bike.add(w);
+      });
+      return bike;
+    }
+
+    const roadNodes = {
+      I_GATE1: {x:-95, z:-135},
+      I_GATE2: {x:-135,z:-135},
+      I_PHARM: {x:120,z:-135},
+      I_OPD:   {x:78,z:-135},
+      I_NW:    {x:-95, z:-55},
+      I_MID_W: {x:-95, z:0},
+      I_SW:    {x:-95, z:65},
+      I_NORTH: {x:20,  z:-135},
+      I_N_MID: {x:20,  z:-55},
+      I_CENTER:{x:20,  z:0},
+      I_SOUTH: {x:20,  z:65},
+      I_MESS:  {x:80,  z:-55},
+      I_EAST:  {x:80,  z:0},
+      I_G5:    {x:170, z:30},
+      I_GH:    {x:195, z:135},
+      I_VISITORS: {x:145, z:135}
+    };
+
+    buildConnectedRoadSegment(roadNodes.I_GATE2.x, roadNodes.I_GATE2.z, roadNodes.I_PHARM.x, roadNodes.I_PHARM.z);
+    buildConnectedRoadSegment(roadNodes.I_PHARM.x, roadNodes.I_PHARM.z, roadNodes.I_OPD.x, roadNodes.I_OPD.z);
+    buildConnectedRoadSegment(roadNodes.I_OPD.x, roadNodes.I_OPD.z, roadNodes.I_GATE1.x, roadNodes.I_GATE1.z);
+    buildConnectedRoadSegment(roadNodes.I_GATE1.x, roadNodes.I_GATE1.z, roadNodes.I_NORTH.x, roadNodes.I_NORTH.z);
+    buildConnectedRoadSegment(roadNodes.I_NORTH.x, roadNodes.I_NORTH.z, roadNodes.I_OPD.x, roadNodes.I_OPD.z);
+    buildConnectedRoadSegment(roadNodes.I_OPD.x, roadNodes.I_OPD.z, roadNodes.I_PHARM.x, roadNodes.I_PHARM.z);
+    buildConnectedRoadSegment(roadNodes.I_GATE1.x, roadNodes.I_GATE1.z, roadNodes.I_NW.x, roadNodes.I_NW.z);
+    buildConnectedRoadSegment(roadNodes.I_NW.x, roadNodes.I_NW.z, roadNodes.I_MID_W.x, roadNodes.I_MID_W.z);
+    buildConnectedRoadSegment(roadNodes.I_MID_W.x, roadNodes.I_MID_W.z, roadNodes.I_SW.x, roadNodes.I_SW.z);
+    buildConnectedRoadSegment(roadNodes.I_NW.x, roadNodes.I_NW.z, roadNodes.I_N_MID.x, roadNodes.I_N_MID.z);
+    buildConnectedRoadSegment(roadNodes.I_NORTH.x, roadNodes.I_NORTH.z, roadNodes.I_N_MID.x, roadNodes.I_N_MID.z);
+    buildConnectedRoadSegment(roadNodes.I_N_MID.x, roadNodes.I_N_MID.z, roadNodes.I_MESS.x, roadNodes.I_MESS.z);
+    buildConnectedRoadSegment(roadNodes.I_MID_W.x, roadNodes.I_MID_W.z, roadNodes.I_CENTER.x, roadNodes.I_CENTER.z);
+    buildConnectedRoadSegment(roadNodes.I_CENTER.x, roadNodes.I_CENTER.z, roadNodes.I_EAST.x, roadNodes.I_EAST.z);
+    buildConnectedRoadSegment(roadNodes.I_MESS.x, roadNodes.I_MESS.z, roadNodes.I_EAST.x, roadNodes.I_EAST.z);
+    buildConnectedRoadSegment(roadNodes.I_SW.x, roadNodes.I_SW.z, roadNodes.I_SOUTH.x, roadNodes.I_SOUTH.z);
+    buildConnectedRoadSegment(roadNodes.I_CENTER.x, roadNodes.I_CENTER.z, roadNodes.I_SOUTH.x, roadNodes.I_SOUTH.z);
+    buildConnectedRoadSegment(roadNodes.I_EAST.x, roadNodes.I_EAST.z, roadNodes.I_G5.x, roadNodes.I_G5.z);
+    buildConnectedRoadSegment(roadNodes.I_G5.x, roadNodes.I_G5.z, roadNodes.I_GH.x, roadNodes.I_GH.z);
+    buildConnectedRoadSegment(roadNodes.I_G5.x, roadNodes.I_G5.z, roadNodes.I_VISITORS.x, roadNodes.I_VISITORS.z);
+
+    Object.values(roadNodes).forEach(node => buildIntersectionHub(node.x, node.z));
+
+    [ {x:-60, z:-120}, {x:-30, z:-120}, {x:50, z:-120}, {x:-70, z:-20}, {x:-70, z:40}, {x:50, z:40} ].forEach(p => buildTree(p.x, p.z));
+
+    // --- 6. ANIMATED 3D PEDESTRIAN CHARACTER ---
+    const pedestrianAssets = (() => {
+      const material = (color, roughness) => new THREE.MeshStandardMaterial({ color, roughness });
+      return {
+        geometry: {
+          unitSphere: new THREE.SphereGeometry(1, 16, 12),
+          head: new THREE.SphereGeometry(0.49, 20, 16),
+          hair: new THREE.SphereGeometry(0.49, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.48),
+          eyeWhite: new THREE.SphereGeometry(0.06, 10, 8),
+          pupil: new THREE.SphereGeometry(0.027, 8, 8),
+          smile: new THREE.TorusGeometry(0.105, 0.018, 6, 14, Math.PI),
+          shirt: new THREE.CylinderGeometry(0.48, 0.62, 1.72, 16),
+          collar: new THREE.CylinderGeometry(0.18, 0.23, 0.12, 12),
+          neck: new THREE.CylinderGeometry(0.17, 0.2, 0.32, 12),
+          upperArm: new THREE.CylinderGeometry(0.19, 0.155, 0.82, 12),
+          cuff: new THREE.CylinderGeometry(0.157, 0.145, 0.12, 12),
+          forearm: new THREE.CylinderGeometry(0.145, 0.105, 0.72, 12),
+          upperLeg: new THREE.CylinderGeometry(0.24, 0.19, 1.15, 12),
+          lowerLeg: new THREE.CylinderGeometry(0.18, 0.135, 1.48, 12),
+          shoe: new THREE.BoxGeometry(0.36, 0.2, 0.57),
+          playerStripe: new THREE.BoxGeometry(0.1, 0.9, 0.045),
+          playerBadge: new THREE.SphereGeometry(0.065, 8, 8)
+        },
+        material: {
+          skin: material(0xc98d68, 0.82),
+          hair: material(0x29221f, 0.92),
+          playerClothes: material(0x0e7490, 0.76),
+          studentClothes: material(0x2563a6, 0.76),
+          playerTrim: material(0xfbbf24, 0.62),
+          studentTrim: material(0x60a5fa, 0.62),
+          playerPants: material(0x172033, 0.84),
+          studentPants: material(0x26364d, 0.84),
+          shoes: material(0x202938, 0.9),
+          eyes: material(0x211a18, 0.6),
+          white: material(0xf8fafc, 0.48)
+        }
+      };
+    })();
+
+    function createPedestrianCharacter(isPlayer = false) {
+      const group = new THREE.Group();
+      const { geometry, material } = pedestrianAssets;
+      const {
+        skin, hair: hairMat, playerClothes, studentClothes, playerTrim, studentTrim,
+        playerPants, studentPants, shoes: shoeMat, eyes: eyeMat, white: whiteMat
+      } = material;
+      const clothesMat = isPlayer ? playerClothes : studentClothes;
+      const trimMat = isPlayer ? playerTrim : studentTrim;
+      const pantsMat = isPlayer ? playerPants : studentPants;
+      const addMesh = (parent, geometry, material, position, castShadow = true) => {
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(position[0], position[1], position[2]);
+        mesh.castShadow = castShadow;
+        mesh.receiveShadow = true;
+        parent.add(mesh);
+        return mesh;
+      };
+      const addLimb = (parent, limbGeometry, material) => {
+        const limb = new THREE.Mesh(limbGeometry, material);
+        limb.position.y = -limbGeometry.parameters.height / 2;
+        limb.castShadow = true;
+        limb.receiveShadow = true;
+        parent.add(limb);
+        return limb;
+      };
+
+      const torso = new THREE.Group();
+      torso.position.set(0, 3.7, 0);
+      group.add(torso);
+      const shirt = addMesh(torso, geometry.shirt, clothesMat, [0, 0, 0]);
+      shirt.scale.z = 0.68;
+      const collar = addMesh(torso, geometry.collar, trimMat, [0, 0.83, 0]);
+      collar.scale.z = 0.72;
+      if (isPlayer) {
+        addMesh(torso, geometry.playerStripe, trimMat, [0.31, -0.02, 0.421], false);
+        addMesh(torso, geometry.playerBadge, whiteMat, [0, -0.02, 0.441], false);
+      }
+
+      const neck = new THREE.Mesh(geometry.neck, skin);
+      neck.position.set(0, 4.64, 0);
+      neck.castShadow = true;
+      group.add(neck);
+      const headGroup = new THREE.Group();
+      headGroup.position.set(0, 5.28, 0);
+      group.add(headGroup);
+      const head = addMesh(headGroup, geometry.head, skin, [0, 0, 0]);
+      head.scale.set(0.88, 1.08, 0.88);
+      const hair = addMesh(headGroup, geometry.hair, hairMat, [0, 0.13, -0.015]);
+      hair.scale.set(0.9, 0.9, 0.9);
+      addMesh(headGroup, geometry.unitSphere, skin, [-0.43, -0.015, 0], false).scale.set(0.12, 0.16, 0.1);
+      addMesh(headGroup, geometry.unitSphere, skin, [0.43, -0.015, 0], false).scale.set(0.12, 0.16, 0.1);
+      addMesh(headGroup, geometry.unitSphere, skin, [0, -0.03, 0.42], false).scale.set(0.085, 0.11, 0.09);
+      [-0.17, 0.17].forEach(x => {
+        addMesh(headGroup, geometry.eyeWhite, whiteMat, [x, 0.045, 0.405], false);
+        addMesh(headGroup, geometry.pupil, eyeMat, [x, 0.045, 0.455], false);
+      });
+      const smile = addMesh(headGroup, geometry.smile, eyeMat, [0, -0.19, 0.412], false);
+      smile.rotation.z = Math.PI;
+
+      const makeArm = (side) => {
+        const arm = new THREE.Group();
+        arm.position.set(side * 0.59, 4.39, 0);
+        group.add(arm);
+        addLimb(arm, geometry.upperArm, clothesMat);
+        const cuff = addMesh(arm, geometry.cuff, trimMat, [0, -0.78, 0]);
+        const elbow = new THREE.Group();
+        elbow.position.set(0, -0.82, 0);
+        arm.add(elbow);
+        addLimb(elbow, geometry.forearm, skin);
+        const hand = addMesh(elbow, geometry.unitSphere, skin, [0, -0.78, 0]);
+        hand.scale.set(0.13, 0.16, 0.12);
+        arm.userData.elbow = elbow;
+        arm.userData.cuff = cuff;
+        return arm;
+      };
+      const leftArm = makeArm(-1);
+      const rightArm = makeArm(1);
+
+      const makeLeg = (side) => {
+        const leg = new THREE.Group();
+        leg.position.set(side * 0.29, 2.9, 0);
+        group.add(leg);
+        addLimb(leg, geometry.upperLeg, pantsMat);
+        const knee = new THREE.Group();
+        knee.position.set(0, -1.15, 0);
+        leg.add(knee);
+        addMesh(knee, geometry.unitSphere, pantsMat, [0, 0, 0]).scale.set(0.19, 0.17, 0.19);
+        addLimb(knee, geometry.lowerLeg, pantsMat);
+        const foot = new THREE.Group();
+        foot.position.set(0, -1.61, 0.04);
+        knee.add(foot);
+        addMesh(foot, geometry.shoe, shoeMat, [0, -0.04, 0.16]);
+        return { leg, knee, foot };
+      };
+      const leftLeg = makeLeg(-1);
+      const rightLeg = makeLeg(1);
+
+      group.userData = {
+        leftArm,
+        rightArm,
+        leftLegGroup: leftLeg.leg,
+        rightLegGroup: rightLeg.leg,
+        leftKnee: leftLeg.knee,
+        rightKnee: rightLeg.knee,
+        leftFoot: leftLeg.foot,
+        rightFoot: rightLeg.foot,
+        torso,
+        headGroup
+      };
+      return group;
+    }
+
+    const AMBIENT_CHARACTER_SCALE = 1;
+    const userPedestrian = createPedestrianCharacter(true);
+    userPedestrian.position.set(-95, 0, -135);
+    scene.add(userPedestrian);
+
+    function animateWalkingHuman(isWalking, speed = 1) {
+      const pose = userPedestrian.userData;
+      if (!isWalking) {
+        pose.leftLegGroup.rotation.x = 0;
+        pose.rightLegGroup.rotation.x = 0;
+        pose.leftKnee.rotation.x = 0;
+        pose.rightKnee.rotation.x = 0;
+        pose.leftFoot.rotation.x = 0;
+        pose.rightFoot.rotation.x = 0;
+        pose.leftArm.rotation.x = 0;
+        pose.rightArm.rotation.x = 0;
+        pose.leftArm.userData.elbow.rotation.x = 0;
+        pose.rightArm.userData.elbow.rotation.x = 0;
+        pose.torso.position.y = 3.7;
+        pose.torso.rotation.x = 0;
+        return;
+      }
+      const phase = Date.now() * 0.011 * speed;
+      const stride = Math.sin(phase);
+      const oppositeStride = Math.sin(phase + Math.PI);
+      const lift = Math.max(0, Math.cos(phase));
+      const oppositeLift = Math.max(0, Math.cos(phase + Math.PI));
+      pose.leftLegGroup.rotation.x = stride * 0.43;
+      pose.rightLegGroup.rotation.x = oppositeStride * 0.43;
+      pose.leftKnee.rotation.x = -lift * 0.62;
+      pose.rightKnee.rotation.x = -oppositeLift * 0.62;
+      pose.leftFoot.rotation.x = lift * 0.25;
+      pose.rightFoot.rotation.x = oppositeLift * 0.25;
+      pose.leftArm.rotation.x = -stride * 0.28;
+      pose.rightArm.rotation.x = -oppositeStride * 0.28;
+      pose.leftArm.userData.elbow.rotation.x = -Math.max(0, -stride) * 0.12;
+      pose.rightArm.userData.elbow.rotation.x = -Math.max(0, -oppositeStride) * 0.12;
+      pose.torso.position.y = 3.7 + Math.abs(stride) * 0.035;
+      pose.torso.rotation.x = -0.045;
+    }
+
+    // --- 7. ARCHITECTURAL BUILDINGS & PARKING AREAS ---
+    function buildDetailedBlock(width, height, depth, pos, mainMat = matSandstone) {
+      const group = new THREE.Group(); group.position.set(pos.x, pos.y, pos.z);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), mainMat); body.castShadow = true; body.receiveShadow = true; group.add(body);
+      
+      // Window Bands & Parapet Borders
+      const glassBand = new THREE.Mesh(new THREE.BoxGeometry(width + 0.2, height * 0.3, depth + 0.2), matGlass);
+      glassBand.position.set(0, height * 0.1, 0); group.add(glassBand);
+      const parapet = new THREE.Mesh(new THREE.BoxGeometry(width + 0.4, 1.2, depth + 0.4), matRoof);
+      parapet.position.set(0, height / 2 + 0.6, 0); group.add(parapet);
+
+      const jaali = new THREE.Mesh(new THREE.BoxGeometry(width * 0.55, height * 0.75, 1.8), matJaali); jaali.position.set(0, height * 0.05, depth / 2 + 0.9); group.add(jaali);
+      const canopy = new THREE.Mesh(new THREE.BoxGeometry(width * 0.5, 2, 8), mainMat); canopy.position.set(0, -height / 2 + 3, depth / 2 + 4); canopy.castShadow = true; group.add(canopy);
+      const door = new THREE.Mesh(new THREE.BoxGeometry(width * 0.35, 6, 1.2), matGlass); door.position.set(0, -height / 2 + 3, depth / 2 + 0.7); group.add(door);
+      return group;
+    }
+
+    function buildShadedWalkway() {
+      const walkway = new THREE.Group();
+      const roofMaterial = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.72, metalness: 0.12 });
+      const supportMaterial = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.68 });
+      const centerX = -22;
+      const startZ = -91;
+      const endZ = 36;
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(5, 0.7, endZ - startZ), roofMaterial);
+      roof.position.set(centerX, 7, (startZ + endZ) / 2);
+      roof.castShadow = true;
+      walkway.add(roof);
+
+      for (let z = startZ; z <= endZ; z += 12) {
+        [-2.1, 2.1].forEach(offset => {
+          const column = new THREE.Mesh(new THREE.BoxGeometry(0.55, 6.6, 0.55), supportMaterial);
+          column.position.set(centerX + offset, 3.3, z);
+          column.castShadow = true;
+          walkway.add(column);
+        });
+      }
+      [-85, -28, 30].forEach(z => {
+        const connectorRoof = new THREE.Mesh(new THREE.BoxGeometry(8, 0.7, 3), roofMaterial);
+        connectorRoof.position.set(-27, 7, z);
+        connectorRoof.castShadow = true;
+        walkway.add(connectorRoof);
+        [-29, -25].forEach(x => {
+          const column = new THREE.Mesh(new THREE.BoxGeometry(0.55, 6.6, 0.55), supportMaterial);
+          column.position.set(x, 3.3, z);
+          column.castShadow = true;
+          walkway.add(column);
+        });
+      });
+      scene.add(walkway);
+    }
+
+    function registerBuilding(id, name, desc, group, size, pos, node) {
+      scene.add(group);
+      const hit = new THREE.Mesh(new THREE.BoxGeometry(size.x, size.y, size.z), new THREE.MeshBasicMaterial({ visible: false }));
+      hit.position.set(pos.x, pos.y, pos.z);
+      hit.userData = { id, name, desc, pos, node, group, size, hasInterior: indoorBuildingIds.includes(id) };
+      scene.add(hit);
+      interactives.push(hit);
+      locationsData[id] = hit.userData;
+
+      const labelDiv = document.createElement('div');
+      labelDiv.className = 'label'; labelDiv.innerText = name;
+      document.getElementById('labels-container').appendChild(labelDiv);
+      labels.push({ el: labelDiv, pos: new THREE.Vector3(pos.x, pos.y + size.y / 2 + 4, pos.z) });
+    }
+
+    const interiorRooms = {
+      ai_block: ['Library', 'AI Lab', 'Study Zone', 'Seminar Room', 'Faculty Office', 'Project Lab'],
+      a_block: ['Lecture Hall', 'Classroom A', 'Faculty Office', 'Computer Lab', 'Seminar Room', 'Restrooms'],
+      b_block: ['Lecture Hall', 'Classroom B', 'Faculty Office', 'Computer Lab', 'Seminar Room', 'Restrooms'],
+      c_block: ['Lecture Hall', 'Classroom C', 'Faculty Office', 'Computer Lab', 'Seminar Room', 'Restrooms'],
+      opd: ['Reception', 'Waiting Area', 'Consultation', 'First Aid', 'Pharmacy Desk', 'Staff Room'],
+      pharmacy: ['Reception', 'Research Lab', 'Teaching Lab', 'Lecture Room', 'Faculty Office', 'Store'],
+      mess: ['Dining Hall', 'Serving Counter', 'Kitchen', 'Wash Area', 'Seating', 'Staff Room'],
+      boys_hostel: ['Hostel Lobby', 'Common Room', 'Resident Rooms', 'Resident Rooms', 'Warden Office', 'Wash Area'],
+      girls_hostel: ['Hostel Lobby', 'Common Room', 'Resident Rooms', 'Resident Rooms', 'Warden Office', 'Wash Area'],
+      cafe1: ['Dining Area', 'Service Counter', 'Kitchen', 'Seating'],
+      cafe2: ['Dining Area', 'Service Counter', 'Kitchen', 'Seating'],
+      shops: ['Cafe', 'Seating', 'Food Stall', 'Service Counter'],
+      mart: ['Shop Floor', 'Checkout', 'Stock Room', 'Entrance'],
+      p_fac: ['Parking Bay', 'Parking Bay', 'Accessible Parking', 'Entry'],
+      p_stud: ['Two-Wheeler Bays', 'Two-Wheeler Bays', 'Cycle Parking', 'Entry'],
+      sports: ['Football Ground', 'Basketball Court', 'Cricket Nets', 'Changing Room', 'Equipment', 'First Aid'],
+      pickleball: ['Court A', 'Court B', 'Seating', 'Equipment']
+    };
+
+    function interiorFloorCount(id) {
+      if (id === 'boys_hostel' || id === 'girls_hostel') return 5;
+      if (id === 'ai_block' || id === 'opd' || id === 'pharmacy') return 4;
+      if (['a_block','b_block','c_block','mess'].includes(id)) return 3;
+      return 1;
+    }
+
+    function makeInteriorLabel(text, x, y, z) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512; canvas.height = 96;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'rgba(15,23,42,.92)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#86efac'; ctx.lineWidth = 5; ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
+      ctx.fillStyle = '#f0fdf4'; ctx.font = 'bold 38px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(text, canvas.width / 2, canvas.height / 2, canvas.width - 24);
+      const texture = new THREE.CanvasTexture(canvas);
+      const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
+      label.position.set(x, y, z); label.scale.set(7, 1.3, 1);
+      return label;
+    }
+
+    function buildInterior(building, floorIndex) {
+      const group = new THREE.Group();
+      const width = Math.max(18, building.size.x - 3);
+      const depth = Math.max(16, building.size.z - 3);
+      const wallHeight = 3.5;
+      const floorY = floorIndex * 4.2;
+      const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x45594f, roughness: .94 });
+      const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x68796f, roughness: .9 });
+      const corridorMaterial = new THREE.MeshStandardMaterial({ color: 0x24734f, roughness: .92 });
+      const floor = new THREE.Mesh(new THREE.BoxGeometry(width, .35, depth), floorMaterial);
+      floor.position.y = floorY; floor.receiveShadow = true; group.add(floor);
+
+      function wall(w, h, d, x, y, z) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMaterial);
+        mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; group.add(mesh);
+      }
+      const wallY = floorY + wallHeight / 2;
+      wall(.6, wallHeight, depth, -width / 2, wallY, 0);
+      wall(.6, wallHeight, depth, width / 2, wallY, 0);
+      wall(width / 2 - 3, wallHeight, .6, -width / 4 - 1.5, wallY, depth / 2);
+      wall(width / 2 - 3, wallHeight, .6, width / 4 + 1.5, wallY, depth / 2);
+      wall(width, wallHeight, .6, 0, wallY, -depth / 2);
+
+      const hall = new THREE.Mesh(new THREE.BoxGeometry(4, .08, depth - 1), corridorMaterial);
+      hall.position.set(0, floorY + .22, 0); group.add(hall);
+      const rooms = interiorRooms[building.id] || ['Lobby', 'Study Area', 'Office', 'Common Room'];
+      const rowCount = Math.ceil(rooms.length / 2);
+      const roomDepth = (depth - 2) / rowCount;
+      for (let row = 1; row < rowCount; row++) {
+        const z = -depth / 2 + 1 + row * roomDepth;
+        wall(width / 2 - 4, .22, .45, -width / 4 - 1, floorY + 2.5, z);
+        wall(width / 2 - 4, .22, .45, width / 4 + 1, floorY + 2.5, z);
+      }
+      const floorNames = ['Ground', 'First', 'Second', 'Third', 'Fourth'];
+      group.add(makeInteriorLabel(`${floorNames[floorIndex] || `Floor ${floorIndex}`} • Main corridor`, 0, floorY + 2.2, depth / 2 - 4));
+      rooms.forEach((room, index) => {
+        const side = index % 2 === 0 ? -1 : 1;
+        const row = Math.floor(index / 2);
+        const z = depth / 2 - (row + .5) * roomDepth;
+        group.add(makeInteriorLabel(room, side * (width / 4 + .5), floorY + 2.2, z));
+      });
+
+      const stairColor = new THREE.MeshStandardMaterial({ color: 0x334155 });
+      const stair = new THREE.Mesh(new THREE.BoxGeometry(3.5, 2.4, 4), stairColor);
+      stair.position.set(width / 2 - 3, floorY + 1.4, -depth / 2 + 3); group.add(stair);
+      group.position.set(building.pos.x, 0, building.pos.z);
+      group.userData = { width, depth, floorY, rooms };
+      return group;
+    }
+
+    function setInteriorFloor(floorIndex) {
+      const building = locationsData[indoorState.buildingId];
+      if (!building) return;
+      if (indoorState.group) scene.remove(indoorState.group);
+      indoorState.floor = floorIndex;
+      indoorState.group = buildInterior(building, floorIndex);
+      scene.add(indoorState.group);
+      const roomSelect = document.getElementById('select-room');
+      roomSelect.innerHTML = '<option value="">Choose a room</option>';
+      indoorState.group.userData.rooms.forEach((room, index) => {
+        const option = document.createElement('option'); option.value = String(index); option.textContent = room;
+        roomSelect.appendChild(option);
+      });
+      roomSelect.value = ''; roomSelect.disabled = false;
+      const floorOffset = floorIndex * 4.2;
+      controls.target.set(building.pos.x, floorOffset + 1, building.pos.z);
+      const viewScale = Math.max(building.size.x, building.size.z);
+      camera.position.set(building.pos.x + viewScale * .34, floorOffset + viewScale * 1.6, building.pos.z + viewScale * .3);
+      const floorNames = ['Ground', 'First', 'Second', 'Third', 'Fourth'];
+      document.getElementById('indoor-banner').textContent = `${building.name}  /  ${floorNames[floorIndex] || `Floor ${floorIndex}`}  •  Illustrative layout`;
+    }
+
+    function changeInteriorRoom() {
+      const group = indoorState.group;
+      if (!indoorState.active || !group) return;
+      if (group.userData.roomRoute) group.remove(group.userData.roomRoute);
+      const roomValue = document.getElementById('select-room').value;
+      const roomIndex = roomValue === '' ? -1 : Number(roomValue);
+      const building = locationsData[indoorState.buildingId];
+      const floorNames = ['Ground', 'First', 'Second', 'Third', 'Fourth'];
+      const floorName = floorNames[indoorState.floor] || `Floor ${indoorState.floor}`;
+      if (!Number.isInteger(roomIndex) || roomIndex < 0 || roomIndex >= group.userData.rooms.length) {
+        document.getElementById('indoor-banner').textContent = `${building.name}  /  ${floorName}  •  Illustrative layout`;
+        return;
+      }
+      const { width, depth, floorY, rooms } = group.userData;
+      const rowCount = Math.ceil(rooms.length / 2);
+      const row = Math.floor(roomIndex / 2);
+      const side = roomIndex % 2 === 0 ? -1 : 1;
+      const roomDepth = (depth - 2) / rowCount;
+      const roomX = side * (width / 4 + .5);
+      const roomZ = depth / 2 - (row + .5) * roomDepth;
+      const y = floorY + .42;
+      const path = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, y, depth / 2 - 2),
+        new THREE.Vector3(0, y, roomZ),
+        new THREE.Vector3(roomX, y, roomZ)
+      ]);
+      const route = new THREE.Group();
+      route.add(new THREE.Line(path, new THREE.LineBasicMaterial({ color: 0x16a34a, linewidth: 4 })));
+      const marker = new THREE.Mesh(new THREE.SphereGeometry(.65, 16, 12), new THREE.MeshBasicMaterial({ color: 0x16a34a }));
+      marker.position.set(roomX, floorY + .8, roomZ); route.add(marker);
+      group.add(route); group.userData.roomRoute = route;
+      document.getElementById('indoor-banner').textContent = `${building.name}  /  ${floorName}  /  ${rooms[roomIndex]}`;
+    }
+
+    function toggleInteriorMode() {
+      const building = locationsData[selTo.value];
+      if (!building || !building.hasInterior) return;
+      const button = document.getElementById('btn-interior');
+      const floorSelect = document.getElementById('select-floor');
+      if (indoorState.active) {
+        indoorState.active = false;
+        if (indoorState.group) scene.remove(indoorState.group);
+        const previousBuilding = locationsData[indoorState.buildingId];
+        if (previousBuilding) previousBuilding.group.visible = true;
+        indoorState.group = null;
+        indoorState.buildingId = null;
+        const roomSelect = document.getElementById('select-room');
+        roomSelect.disabled = true;
+        roomSelect.innerHTML = '<option value="">Choose a room</option>';
+        document.querySelector('.nav-box').classList.remove('indoor-active');
+        document.querySelector('.nav-box h2').textContent = '🗺️ Route Navigation';
+        document.getElementById('info-panel').classList.remove('indoor-active');
+        document.getElementById('indoor-banner').classList.remove('active');
+        button.textContent = '↳ EXPLORE INSIDE';
+        floorSelect.disabled = true;
+        controls.maxPolarAngle = Math.PI / 2.05;
+        camera.position.set(-110, 190, 230);
+        controls.target.set(0, 0, 0);
+        return;
+      }
+      if (isNavigating) stopRealtimeNavigation();
+      if (isCampusTourActive) toggleCampusTour();
+      if (indoorState.buildingId && locationsData[indoorState.buildingId]) locationsData[indoorState.buildingId].group.visible = true;
+      indoorState.active = true;
+      indoorState.buildingId = building.id;
+      document.querySelector('.nav-box').classList.add('indoor-active');
+      document.querySelector('.nav-box h2').textContent = 'INDOOR MAP';
+      document.getElementById('info-panel').classList.add('indoor-active');
+      building.group.visible = false;
+      const count = interiorFloorCount(building.id);
+      floorSelect.innerHTML = '';
+      ['Ground','First','Second','Third','Fourth'].slice(0, count).forEach((name, index) => {
+        const option = document.createElement('option'); option.value = String(index); option.textContent = name;
+        floorSelect.appendChild(option);
+      });
+      floorSelect.value = '0'; floorSelect.disabled = count === 1;
+      button.textContent = '↩ EXIT BUILDING';
+      controls.maxPolarAngle = Math.PI * .82;
+      setInteriorFloor(0);
+      document.getElementById('indoor-banner').classList.add('active');
+    }
+
+    function changeInteriorFloor() {
+      if (indoorState.active) setInteriorFloor(Number(document.getElementById('select-floor').value));
+    }
+
+    function updateInteriorAvailability() {
+      const building = locationsData[selTo.value];
+      const button = document.getElementById('btn-interior');
+      button.disabled = !building || !building.hasInterior;
+      if (indoorState.active && building && building.id !== indoorState.buildingId) {
+        toggleInteriorMode();
+      }
+    }
+
+    function buildRealGate(pos, label, rotationY=0){
+      const g=new THREE.Group(); g.position.set(pos.x,0,pos.z); g.rotation.y=rotationY;
+      const pillarGeo=new THREE.BoxGeometry(5,16,5);
+      [-13,13].forEach(x=>{const p=new THREE.Mesh(pillarGeo,matSandstone);p.position.set(x,8,0);p.castShadow=true;g.add(p);});
+      const beam=new THREE.Mesh(new THREE.BoxGeometry(31,4,5),matDark); beam.position.set(0,15,0); beam.castShadow=true; g.add(beam);
+      const canopy=new THREE.Mesh(new THREE.BoxGeometry(36,1.5,9),matSandstone); canopy.position.set(0,17,0); canopy.castShadow=true; g.add(canopy);
+      const sign=new THREE.Mesh(new THREE.BoxGeometry(18,3,0.7),matGlass); sign.position.set(0,13.4,2.8); g.add(sign);
+      const roadBarrier=new THREE.Mesh(new THREE.BoxGeometry(8,0.8,1),matDark); roadBarrier.position.set(0,1.1,0); g.add(roadBarrier);
+      scene.add(g);
+      const hit=new THREE.Mesh(new THREE.BoxGeometry(34,18,10),new THREE.MeshBasicMaterial({visible:false})); hit.position.set(pos.x,9,pos.z); hit.userData={id:label.id,name:label.name,desc:label.desc,pos:{x:pos.x,y:9,z:pos.z},node:label.node}; scene.add(hit); interactives.push(hit); locationsData[label.id]=hit.userData;
+      const el=document.createElement('div');el.className='label';el.innerText=label.name;document.getElementById('labels-container').appendChild(el);labels.push({el,pos:new THREE.Vector3(pos.x,20,pos.z)});
+      return g;
+    }
+    buildRealGate({x:-95,z:-150},{id:'gate1',name:'Gate 1',desc:'Main university entrance gate.',node:'I_GATE1'});
+    buildRealGate({x:-130,z:-135},{id:'gate2',name:'Gate 2',desc:'University entrance gate connecting the medical and academic side.',node:'I_GATE2'},Math.PI/2);
+
+    // MEDICAL ZONE — deliberately placed behind Faculty Parking when entering from Gate 2.
+    buildLawnPad(78, -166, 34, 28);
+    const opdGroup = buildDetailedBlock(26, 22, 24, {x:78, y:11, z:-166}, matMedical);
+    const cross1 = new THREE.Mesh(new THREE.BoxGeometry(6, 1.8, 0.4), matCrossRed); cross1.position.set(0, 5, 12.3); opdGroup.add(cross1);
+    const cross2 = new THREE.Mesh(new THREE.BoxGeometry(1.8, 6, 0.4), matCrossRed); cross2.position.set(0, 5, 12.3); opdGroup.add(cross2);
+    registerBuilding('opd', 'OPD Block', 'Outpatient Department & Campus Health Center.', opdGroup, {x:26, y:22, z:24}, {x:78, y:11, z:-166}, 'I_OPD');
+
+    buildLawnPad(120, -166, 30, 26);
+    const pharmGroup = buildDetailedBlock(24, 20, 22, {x:120, y:10, z:-166}, matSandstone);
+    registerBuilding('pharmacy', 'Pharmacy Block', 'Pharmaceutical Sciences and Research Block.', pharmGroup, {x:24, y:20, z:22}, {x:120, y:10, z:-166}, 'I_PHARM');
+
+    // FACULTY PARKING WITH CARS
+    buildLawnPad(20, -165, 70, 40);
+    const pFacGroup = new THREE.Group(); pFacGroup.position.set(20, 0, -165); 
+    pFacGroup.add(new THREE.Mesh(new THREE.BoxGeometry(60, 0.4, 30), matDark));
+    for(let x = -20; x <= 20; x += 10) {
+      const c1 = createCarMesh(); c1.position.set(x, 0.2, -6); pFacGroup.add(c1);
+      const c2 = createCarMesh(); c2.position.set(x, 0.2, 6); c2.rotation.y = Math.PI; pFacGroup.add(c2);
+    }
+    registerBuilding('p_fac', 'Parking (Faculty)', 'Faculty vehicle parking area with parked cars.', pFacGroup, {x:60, y:5, z:30}, {x:20, y:2.5, z:-165}, 'I_NORTH');
+
+    buildLawnPad(-45, -85, 45, 40);
+    const aiGroup = buildDetailedBlock(32, 28, 26, {x:-45, y:14, z:-85});
+    const libAtrium = new THREE.Mesh(new THREE.BoxGeometry(18, 20, 16), matGlass); libAtrium.position.set(16, -2, 4); aiGroup.add(libAtrium);
+    registerBuilding('ai_block', 'AI Block & Library', 'Houses AI Labs and central Library.', aiGroup, {x:40, y:28, z:26}, {x:-45, y:14, z:-85}, 'I_NW');
+
+    const shopMesh = new THREE.Mesh(new THREE.BoxGeometry(18, 7, 14), matSandstone); shopMesh.position.set(-5, 3.5, -85);
+    registerBuilding('shops', 'Small Cafe Shops', 'Food & beverage stalls.', shopMesh, {x:18, y:7, z:14}, {x:-5, y:3.5, z:-85}, 'I_N_MID');
+
+    buildLawnPad(-45, -28, 45, 40);
+    const aGroup = buildDetailedBlock(28, 26, 24, {x:-45, y:13, z:-28});
+    registerBuilding('a_block', 'A Block', 'Academic Block A.', aGroup, {x:28, y:26, z:24}, {x:-45, y:13, z:-28}, 'I_MID_W');
+
+    const cafe1Mesh = new THREE.Mesh(new THREE.BoxGeometry(22, 9, 20), matSandstone); cafe1Mesh.position.set(-5, 4.5, -28);
+    registerBuilding('cafe1', 'Cafeteria 1', 'Primary campus cafeteria.', cafe1Mesh, {x:22, y:9, z:20}, {x:-5, y:4.5, z:-28}, 'I_CENTER');
+
+    buildLawnPad(-45, 30, 45, 40);
+    const bGroup = buildDetailedBlock(28, 26, 24, {x:-45, y:13, z:30});
+    registerBuilding('b_block', 'B Block', 'Academic Block B.', bGroup, {x:28, y:26, z:24}, {x:-45, y:13, z:30}, 'I_MID_W');
+    buildShadedWalkway();
+
+    const cafe2Mesh = new THREE.Mesh(new THREE.BoxGeometry(14, 7, 12), matSandstone); cafe2Mesh.position.set(20, 3.5, -28);
+    registerBuilding('cafe2', 'Cafeteria 2', 'Secondary cafeteria placed between Cafeteria 1 and the Mart.', cafe2Mesh, {x:14, y:7, z:12}, {x:20, y:3.5, z:-28}, 'I_CENTER');
+
+    const martMesh = new THREE.Mesh(new THREE.BoxGeometry(18, 8, 16), matSandstone); martMesh.position.set(45, 4, -28);
+    registerBuilding('mart', 'Mart', 'Campus utility store.', martMesh, {x:18, y:8, z:16}, {x:45, y:4, z:-28}, 'I_CENTER');
+
+    // STUDENT PARKING
+    buildLawnPad(55, 32, 42, 26);
+    const pStudGroup = new THREE.Group(); pStudGroup.position.set(55, 0, 32); 
+    const pStudMesh = new THREE.Mesh(new THREE.BoxGeometry(36, 0.4, 22), matDark); pStudGroup.add(pStudMesh);
+    for(let x = -14; x <= 14; x += 4) {
+      const b1 = createBikeMesh(); b1.position.set(x, 0.2, -5); pStudGroup.add(b1);
+      const b2 = createBikeMesh(); b2.position.set(x, 0.2, 5); b2.rotation.y = Math.PI; pStudGroup.add(b2);
+    }
+    registerBuilding('p_stud', 'Parking (Student)', 'Student vehicle parking moved off the main road.', pStudGroup, {x:36, y:5, z:22}, {x:55, y:2.5, z:32}, 'I_SOUTH');
+
+    buildLawnPad(-45, 95, 45, 40);
+    const cGroup = buildDetailedBlock(28, 26, 24, {x:-45, y:13, z:95});
+    registerBuilding('c_block', 'C Block', 'Academic Block C.', cGroup, {x:28, y:26, z:24}, {x:-45, y:13, z:95}, 'I_SW');
+    buildLawnPad(-45, 135, 48, 34);
+    const cGroundSign=new THREE.Mesh(new THREE.BoxGeometry(26,1,8),matDark); cGroundSign.position.set(-45,0.6,135); scene.add(cGroundSign);
+
+    // SPORTS COMPLEX — football + basketball + cricket practice
+    const sportsGroup = new THREE.Group();
+    sportsGroup.position.set(20, 0, 95);
+    const football = new THREE.Mesh(new THREE.PlaneGeometry(50, 34), matTurf); football.rotation.x=-Math.PI/2; football.position.set(20,.12,0); sportsGroup.add(football);
+    // football lines
+    const fLines=[new THREE.Mesh(new THREE.PlaneGeometry(0.35,34),matWhiteLine),new THREE.Mesh(new THREE.PlaneGeometry(50,.35),matWhiteLine)];
+    fLines[0].rotation.x=fLines[1].rotation.x=-Math.PI/2; fLines[0].position.set(-5,.16,0); fLines[1].position.set(20,.16,0); sportsGroup.add(fLines[0],fLines[1]);
+    const centreCircle=new THREE.Mesh(new THREE.RingGeometry(7,7.35,48),matWhiteLine); centreCircle.rotation.x=-Math.PI/2; centreCircle.position.set(20,.17,0); sportsGroup.add(centreCircle);
+    // goals
+    function addGoal(x){const goal=new THREE.Group();const postMat=new THREE.MeshStandardMaterial({color:0xffffff});[-7,7].forEach(z=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,5,8),postMat);p.position.set(x,2.5,z);goal.add(p)});const bar=new THREE.Mesh(new THREE.BoxGeometry(.35,5,14),postMat);bar.position.set(x,5,0);goal.add(bar);sportsGroup.add(goal)}
+    addGoal(-5); addGoal(45);
+    // basketball court
+    const bbCourt = new THREE.Mesh(new THREE.PlaneGeometry(30, 20), matCourtBB); bbCourt.rotation.x=-Math.PI/2; bbCourt.position.set(-18,.15,0); sportsGroup.add(bbCourt);
+    const hoopMat=new THREE.MeshStandardMaterial({color:0xffffff});[-18, -18+30].forEach(x=>{const pole=new THREE.Mesh(new THREE.CylinderGeometry(.25,.25,6,8),matDark);pole.position.set(x,3,-8);sportsGroup.add(pole);const rim=new THREE.Mesh(new THREE.TorusGeometry(1,.12,8,20),new THREE.MeshStandardMaterial({color:0xf97316}));rim.position.set(x,6,-8);rim.rotation.x=Math.PI/2;sportsGroup.add(rim)});
+    // cricket practice nets
+    const netGroup=new THREE.Group(); netGroup.position.set(20,0,25); const netMat=new THREE.MeshBasicMaterial({color:0x94a3b8,transparent:true,opacity:.45,wireframe:true});
+    const netBox=new THREE.Mesh(new THREE.BoxGeometry(26,8,12),netMat);netBox.position.y=4;netGroup.add(netBox); const pitch=new THREE.Mesh(new THREE.PlaneGeometry(4,24),matPitch);pitch.rotation.x=-Math.PI/2;pitch.position.y=.17;netGroup.add(pitch); sportsGroup.add(netGroup);
+    registerBuilding('sports', 'Sports Complex', 'Football ground, basketball court and cricket practice nets.', sportsGroup, {x:85,y:8,z:65}, {x:20,y:4,z:95}, 'I_SOUTH');
+    // active players
+    const sportsPlayers=new THREE.Group(); sportsPlayers.name='sportsPlayers'; sportsGroup.add(sportsPlayers);
+    for(let i=0;i<6;i++){const p=createPedestrianCharacter();p.scale.setScalar(AMBIENT_CHARACTER_SCALE);p.position.set(2+i*7,0, -8+(i%2)*16);sportsPlayers.add(p);p.userData.phase=i*.8;}
+
+
+    // HOSTELS & MESS
+    buildLawnPad(80, -95, 40, 35);
+    const messGroup = buildDetailedBlock(26, 12, 22, {x:80, y:6, z:-95});
+    registerBuilding('mess', 'Central Mess', 'Primary campus dining facility.', messGroup, {x:26, y:12, z:22}, {x:80, y:6, z:-95}, 'I_MESS');
+
+    buildLawnPad(115, -55, 58, 58);
+    const bhGroup = new THREE.Group();
+    [
+      buildDetailedBlock(40, 28, 10, {x:115, y:14, z:-78}),
+      buildDetailedBlock(40, 28, 10, {x:115, y:14, z:-32}),
+      buildDetailedBlock(10, 28, 36, {x:94, y:14, z:-55}),
+      buildDetailedBlock(10, 28, 36, {x:136, y:14, z:-55})
+    ].forEach(wing => bhGroup.add(wing));
+
+    function buildBadmintonCourt(x, z) {
+      const court = new THREE.Group();
+      court.position.set(x, 0, z);
+      const surface = new THREE.Mesh(new THREE.PlaneGeometry(8, 17), matBadmintonCourt);
+      surface.rotation.x = -Math.PI / 2;
+      surface.position.y = 0.18;
+      surface.receiveShadow = true;
+      court.add(surface);
+      const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const addCourtLine = (width, depth, lineX, lineZ) => {
+        const line = new THREE.Mesh(new THREE.BoxGeometry(width, 0.06, depth), lineMaterial);
+        line.position.set(lineX, 0.23, lineZ);
+        court.add(line);
+      };
+      addCourtLine(0.12, 17, -3.8, 0); addCourtLine(0.12, 17, 3.8, 0);
+      addCourtLine(8, 0.12, 0, -8.4); addCourtLine(8, 0.12, 0, 8.4);
+      addCourtLine(8, 0.12, 0, 0);
+      [-0.8, 0.8].forEach(xOffset => {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.55, 8), matDark);
+        post.position.set(xOffset, 1.02, 0);
+        court.add(post);
+      });
+      const net = new THREE.Mesh(new THREE.BoxGeometry(7.7, 1.25, 0.08), new THREE.MeshBasicMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.72 }));
+      net.position.set(0, 1.18, 0);
+      court.add(net);
+      bhGroup.add(court);
+    }
+    buildBadmintonCourt(107, -55);
+    buildBadmintonCourt(123, -55);
+    registerBuilding('boys_hostel', 'Boys Hostel', 'Four residential wings surround a shared courtyard with two badminton courts.', bhGroup, {x:58, y:30, z:58}, {x:115, y:15, z:-55}, 'I_MESS');
+
+    // PICKLEBALL GROUND BEHIND BOYS HOSTEL
+    buildLawnPad(115, -5, 42, 30);
+    const pickleGroup=new THREE.Group(); pickleGroup.position.set(115,0,-5);
+    const pickleCourt=new THREE.Mesh(new THREE.PlaneGeometry(34,20),matCourtBB);pickleCourt.rotation.x=-Math.PI/2;pickleCourt.position.y=.14;pickleGroup.add(pickleCourt);
+    const netPoleMat=matDark;[-9,9].forEach(z=>{const pole=new THREE.Mesh(new THREE.CylinderGeometry(.18,.18,4,8),netPoleMat);pole.position.set(0,2,z);pickleGroup.add(pole)});
+    const net=new THREE.Mesh(new THREE.BoxGeometry(.2,3.2,18),new THREE.MeshBasicMaterial({color:0xf8fafc,transparent:true,opacity:.7}));net.position.y=2;pickleGroup.add(net);
+    const p1=createPedestrianCharacter(),p2=createPedestrianCharacter();p1.scale.setScalar(AMBIENT_CHARACTER_SCALE);p2.scale.setScalar(AMBIENT_CHARACTER_SCALE);p1.position.set(-9,0,0);p2.position.set(9,0,0);p1.rotation.y=Math.PI/2;p2.rotation.y=-Math.PI/2;pickleGroup.add(p1,p2);
+    registerBuilding('pickleball','Pickleball Ground','Pickleball court behind Boys Hostel with simulated players.',pickleGroup,{x:42,y:8,z:30},{x:115,y:4,z:-5},'I_MESS');
+
+
+    const g5Group = new THREE.Group();
+    g5Group.position.set(170, 0, 30);
+    g5Group.rotation.y = Math.PI / 2;
+    const gateColumnMaterial = new THREE.MeshStandardMaterial({ color: 0xbfa77e, roughness: 0.82 });
+    const gateTrimMaterial = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.62, metalness: 0.28 });
+    [-14, 14].forEach(x => {
+      const column = new THREE.Mesh(new THREE.BoxGeometry(5, 16, 7), gateColumnMaterial);
+      column.position.set(x, 8, 0);
+      column.castShadow = true;
+      g5Group.add(column);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(6.4, 1.2, 8.4), gateTrimMaterial);
+      cap.position.set(x, 16.6, 0);
+      g5Group.add(cap);
+    });
+    const gateBeam = new THREE.Mesh(new THREE.BoxGeometry(34, 3, 7), gateTrimMaterial);
+    gateBeam.position.set(0, 14.2, 0);
+    gateBeam.castShadow = true;
+    g5Group.add(gateBeam);
+    const gateCanopy = new THREE.Mesh(new THREE.BoxGeometry(39, 1.4, 11), gateColumnMaterial);
+    gateCanopy.position.set(0, 16.5, 0);
+    gateCanopy.castShadow = true;
+    g5Group.add(gateCanopy);
+    const gateSign = new THREE.Mesh(new THREE.BoxGeometry(23, 3, 0.55), new THREE.MeshStandardMaterial({ color: 0x123047, roughness: 0.48, metalness: 0.38 }));
+    gateSign.position.set(0, 12.2, 3.8);
+    g5Group.add(gateSign);
+    const gateSignFace = new THREE.Mesh(new THREE.BoxGeometry(20, 1.8, 0.1), new THREE.MeshBasicMaterial({ color: 0xf8fafc }));
+    gateSignFace.position.set(0, 12.2, 4.12);
+    g5Group.add(gateSignFace);
+    g5Group.add(makeInteriorLabel('GATE 5', 0, 12.2, 4.2));
+    [-10, -6, -2, 2, 6, 10].forEach(x => {
+      const grille = new THREE.Mesh(new THREE.BoxGeometry(0.28, 7, 0.28), gateTrimMaterial);
+      grille.position.set(x, 4, 0);
+      g5Group.add(grille);
+    });
+    registerBuilding('gate5', 'Gate Number 5', 'Distinct east-side entrance gate with stone piers, canopy, sign panel and metal grille.', g5Group, {x:12, y:19, z:40}, {x:170, y:9.5, z:30}, 'I_G5');
+
+    buildLawnPad(210, 135, 48, 42);
+    const ghGroup = new THREE.Group();
+    ghGroup.position.set(210, 15, 135);
+    const ghBody = new THREE.Mesh(new THREE.BoxGeometry(34, 30, 28), matSandstone);
+    ghBody.castShadow = true;
+    ghBody.receiveShadow = true;
+    ghGroup.add(ghBody);
+    const ghWindowMaterial = new THREE.MeshStandardMaterial({ color: 0x60a5fa, roughness: 0.3, metalness: 0.22 });
+    for (let floor = 0; floor < 4; floor++) {
+      for (let column = 0; column < 5; column++) {
+        const windowPane = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.2, 0.22), ghWindowMaterial);
+        windowPane.position.set(-12 + column * 6, -10 + floor * 6, 14.12);
+        ghGroup.add(windowPane);
+      }
+    }
+    const ghRoof = new THREE.Mesh(new THREE.BoxGeometry(35, 1.2, 29), matRoof);
+    ghRoof.position.y = 15.6;
+    ghGroup.add(ghRoof);
+    const ghEntrance = new THREE.Mesh(new THREE.BoxGeometry(10, 5, 4), matSandstone);
+    ghEntrance.position.set(0, -12.5, 14);
+    ghGroup.add(ghEntrance);
+    registerBuilding('girls_hostel', 'Girls Hostel', 'Rectangular residential block outside the east campus boundary.', ghGroup, {x:34, y:30, z:28}, {x:210, y:15, z:135}, 'I_GH');
+
+    buildLawnPad(90, 135, 62, 52);
+    const visitorsParkingGroup = new THREE.Group();
+    visitorsParkingGroup.position.set(90, 0, 135);
+    const visitorParkingSurface = new THREE.Mesh(new THREE.PlaneGeometry(54, 44), matAsphalt);
+    visitorParkingSurface.rotation.x = -Math.PI / 2;
+    visitorParkingSurface.position.y = 0.16;
+    visitorParkingSurface.receiveShadow = true;
+    visitorsParkingGroup.add(visitorParkingSurface);
+    const bayMaterial = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+    for (let x = -24; x <= 24; x += 8) {
+      const bayLine = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 13), bayMaterial);
+      bayLine.position.set(x, 0.22, -7);
+      visitorsParkingGroup.add(bayLine);
+    }
+    for (let x = -20; x <= 20; x += 10) {
+      const car = createCarMesh();
+      car.position.set(x, 0.2, -8);
+      visitorsParkingGroup.add(car);
+    }
+    for (let x = -24; x <= 24; x += 4) {
+      const bike = createBikeMesh();
+      bike.position.set(x, 0.2, 9);
+      visitorsParkingGroup.add(bike);
+    }
+    registerBuilding('visitors_parking', 'Visitors Parking', 'Expanded marked visitor parking with car and motorcycle spaces at the former Girls Hostel site.', visitorsParkingGroup, {x:54, y:5, z:44}, {x:90, y:2.5, z:135}, 'I_VISITORS');
+
+    // --- 8. GRAPH ROUTING & DIJKSTRA ALGORITHM ---
+    const graph = {
+      I_GATE1: { I_GATE2: 40, I_NORTH: 115, I_NW: 80 },
+      I_GATE2: { I_GATE1: 40 },
+      I_PHARM: { I_OPD: 45 },
+      I_OPD:   { I_PHARM: 45, I_NORTH: 65 },
+      I_NW:    { I_GATE1: 80, I_MID_W: 55, I_N_MID: 115 },
+      I_MID_W: { I_NW: 55, I_SW: 65, I_CENTER: 115 },
+      I_SW:    { I_MID_W: 65, I_SOUTH: 115 },
+      I_NORTH: { I_GATE1: 115, I_N_MID: 80, I_OPD: 65 },
+      I_N_MID: { I_NORTH: 80, I_NW: 115, I_MESS: 60 },
+      I_CENTER:{ I_MID_W: 115, I_SOUTH: 65, I_EAST: 60 },
+      I_SOUTH: { I_SW: 115, I_CENTER: 65 },
+      I_MESS:  { I_N_MID: 60, I_EAST: 55 },
+      I_EAST:  { I_CENTER: 60, I_MESS: 55, I_G5: 55 },
+      I_G5:    { I_EAST: 55, I_GH: 110, I_VISITORS: 108 },
+      I_GH:    { I_G5: 110 },
+      I_VISITORS: { I_G5: 108 }
+    };
+
+    function dijkstra(start, end) {
+      const distances = {};
+      const previous = {};
+      const nodes = new Set();
+
+      for (let node in graph) {
+        if (node === start) {
+          distances[node] = 0;
+        } else {
+          distances[node] = Infinity;
+        }
+        nodes.add(node);
+      }
+
+      while (nodes.size > 0) {
+        let smallest = null;
+        for (let node of nodes) {
+          if (smallest === null || distances[node] < distances[smallest]) {
+            smallest = node;
+          }
+        }
+
+        if (smallest === end || distances[smallest] === Infinity) {
+          break;
+        }
+
+        nodes.delete(smallest);
+
+        for (let neighbor in graph[smallest]) {
+          let alt = distances[smallest] + graph[smallest][neighbor];
+          if (alt < distances[neighbor]) {
+            distances[neighbor] = alt;
+            previous[neighbor] = smallest;
+          }
+        }
+      }
+
+      const path = [];
+      let curr = end;
+      while (curr) {
+        path.unshift(curr);
+        curr = previous[curr];
+      }
+      return path;
+    }
+
+    // Populate dropdowns
+    const selFrom = document.getElementById('select-from');
+    const selTo = document.getElementById('select-to');
+
+    Object.keys(locationsData).forEach(id => {
+      const loc = locationsData[id];
+      const opt1 = document.createElement('option');
+      opt1.value = id; opt1.innerText = loc.name;
+      selFrom.appendChild(opt1);
+
+      const opt2 = document.createElement('option');
+      opt2.value = id; opt2.innerText = loc.name;
+      selTo.appendChild(opt2);
+
+      const suggestion = document.createElement('option');
+      suggestion.value = loc.name;
+      document.getElementById('campus-destination-options').appendChild(suggestion);
+    });
+    selTo.value = 'ai_block';
+
+    // --- 9. NAVIGATION & PATH VISUALIZATION ---
+    let routeLine = null;
+    let navAnimationId = null;
+    let activePathNodes = [];
+    let isNavigating = false;
+    let currentNavigationSegment = 0;
+    let currentNavigationProgress = 0;
+    let lastNavigationFrame = 0;
+    const navigationWalkSpeed = 4.2;
+
+    function searchCampusDestination() {
+      const input = document.getElementById('destination-search-input');
+      const status = document.getElementById('destination-search-status');
+      const query = input.value.trim().toLocaleLowerCase();
+      if (!query) {
+        status.textContent = 'Enter a campus place to search.';
+        return;
+      }
+
+      const destinations = Object.entries(locationsData);
+      const exactMatch = destinations.find(([, location]) => location.name.toLocaleLowerCase() === query);
+      const startsWithMatches = destinations.filter(([, location]) => location.name.toLocaleLowerCase().startsWith(query));
+      const partialMatches = destinations.filter(([, location]) => location.name.toLocaleLowerCase().includes(query));
+      const match = exactMatch || (startsWithMatches.length === 1 ? startsWithMatches[0] : partialMatches.length === 1 ? partialMatches[0] : null);
+      if (!match) {
+        status.textContent = partialMatches.length > 1 ? 'Choose a specific place from the suggestions.' : `No campus place found for “${input.value.trim()}”.`;
+        return;
+      }
+
+      selTo.value = match[0];
+      input.value = match[1].name;
+      status.textContent = `Destination set to ${match[1].name}.`;
+      onDestinationChange();
+      document.getElementById('panel-title').textContent = match[1].name;
+      document.getElementById('panel-desc').textContent = match[1].desc;
+      document.getElementById('info-panel').style.display = 'block';
+    }
+
+    function renderPathLine(nodeKeys) {
+      if (routeLine) scene.remove(routeLine);
+      const points = nodeKeys.map(k => new THREE.Vector3(roadNodes[k].x, 0.4, roadNodes[k].z));
+      const geom = new THREE.BufferGeometry().setFromPoints(points);
+      const mat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 5 });
+      routeLine = new THREE.Line(geom, mat);
+      scene.add(routeLine);
+    }
+
+    function onStartLocationChange() {
+      if (isNavigating) stopRealtimeNavigation();
+      updateRoute();
+    }
+
+    function onDestinationChange() {
+      if (isNavigating) stopRealtimeNavigation();
+      updateRoute();
+      updateInteriorAvailability();
+    }
+
+    function updateRoute() {
+      const startId = selFrom.value;
+      const endId = selTo.value;
+      let startNode = 'I_GATE1';
+
+      if (startId === 'gps') {
+        startNode = findClosestNode(userPedestrian.position);
+      } else if (locationsData[startId]) {
+        startNode = locationsData[startId].node;
+        const pos = locationsData[startId].pos;
+        userPedestrian.position.set(pos.x, 0, pos.z);
+      }
+
+      const endNode = locationsData[endId] ? locationsData[endId].node : 'I_NW';
+      activePathNodes = dijkstra(startNode, endNode);
+      appState.routeReady = activePathNodes.length > 1;
+      renderPathLine(activePathNodes);
+      const hops = Math.max(0, activePathNodes.length - 1);
+      const hopEl = document.getElementById('route-hops');
+      if (hopEl) hopEl.innerText = hops ? `${hops} segments` : '—';
+      const dist = routeDistance(activePathNodes);
+      const distEl = document.getElementById('panel-dist');
+      if (distEl) distEl.innerText = dist ? `${Math.round(dist)} m` : '—';
+    }
+
+    function routeDistance(nodeKeys) {
+      let total = 0;
+      for (let i = 0; i < nodeKeys.length - 1; i++) {
+        const a = roadNodes[nodeKeys[i]];
+        const b = roadNodes[nodeKeys[i + 1]];
+        total += Math.hypot(b.x - a.x, b.z - a.z);
+      }
+      return total;
+    }
+
+    function remainingRouteDistance(nodeKeys, segmentIndex, segmentProgress) {
+      if (nodeKeys.length < 2 || segmentIndex >= nodeKeys.length - 1) return 0;
+      const currentStart = roadNodes[nodeKeys[segmentIndex]];
+      const currentEnd = roadNodes[nodeKeys[segmentIndex + 1]];
+      let total = Math.hypot(currentEnd.x - currentStart.x, currentEnd.z - currentStart.z) * (1 - segmentProgress);
+      for (let index = segmentIndex + 1; index < nodeKeys.length - 1; index++) {
+        const start = roadNodes[nodeKeys[index]];
+        const end = roadNodes[nodeKeys[index + 1]];
+        total += Math.hypot(end.x - start.x, end.z - start.z);
+      }
+      return total;
+    }
+
+    function navigationNodeName(nodeKey) {
+      const names = {
+        I_GATE1: 'Gate 1', I_GATE2: 'Gate 2', I_NORTH: 'North Campus Road',
+        I_NW: 'AI Block & Library', I_MID_W: 'A / B Block Junction',
+        I_SW: 'C Block Junction', I_N_MID: 'Cafe Shops Junction',
+        I_CENTER: 'Central Campus Junction', I_SOUTH: 'Sports Complex Junction',
+        I_MESS: 'Central Mess', I_EAST: 'East Campus Road',
+        I_G5: 'Gate Number 5', I_GH: 'Girls Hostel approach',
+        I_VISITORS: 'Visitors Parking'
+      };
+      return names[nodeKey] || nodeKey;
+    }
+
+    function nextNavigationInstruction(nodeKeys, segmentIndex, segmentProgress) {
+      const destination = locationsData[selTo.value]?.name || 'your destination';
+      if (nodeKeys.length < 2 || segmentIndex >= nodeKeys.length - 1) {
+        return { icon: '✓', title: 'You have arrived', detail: destination };
+      }
+
+      const currentStart = roadNodes[nodeKeys[segmentIndex]];
+      const currentEnd = roadNodes[nodeKeys[segmentIndex + 1]];
+      let distanceToNode = Math.hypot(currentEnd.x - currentStart.x, currentEnd.z - currentStart.z) * (1 - segmentProgress);
+      for (let nodeIndex = segmentIndex + 1; nodeIndex < nodeKeys.length - 1; nodeIndex++) {
+        const previous = roadNodes[nodeKeys[nodeIndex - 1]];
+        const junction = roadNodes[nodeKeys[nodeIndex]];
+        const next = roadNodes[nodeKeys[nodeIndex + 1]];
+        const incomingX = junction.x - previous.x;
+        const incomingZ = junction.z - previous.z;
+        const outgoingX = next.x - junction.x;
+        const outgoingZ = next.z - junction.z;
+        const cross = incomingX * outgoingZ - incomingZ * outgoingX;
+        const dot = incomingX * outgoingX + incomingZ * outgoingZ;
+        const angle = Math.atan2(cross, dot);
+        if (Math.abs(angle) >= Math.PI / 7) {
+          const turn = angle > 0 ? 'Turn left' : 'Turn right';
+          const icon = angle > 0 ? '↰' : '↱';
+          return { icon, title: `${turn} at ${navigationNodeName(nodeKeys[nodeIndex])}`, detail: `${Math.round(distanceToNode)} m to turn` };
+        }
+        distanceToNode += Math.hypot(next.x - junction.x, next.z - junction.z);
+      }
+      return { icon: '↑', title: `Continue to ${destination}`, detail: `${Math.round(remainingRouteDistance(nodeKeys, segmentIndex, segmentProgress))} m to destination` };
+    }
+
+    function updateNavigationSummary(remainingDistance, segmentIndex, segmentProgress) {
+      const etaSeconds = remainingDistance / navigationWalkSpeed;
+      const etaMinutes = Math.ceil(etaSeconds / 60);
+      const etaText = remainingDistance <= 0 ? 'Arrived' : etaMinutes <= 1 ? '< 1 min' : `${etaMinutes} min`;
+      const arrivalTime = new Date(Date.now() + etaSeconds * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      document.getElementById('panel-dist').textContent = remainingDistance <= 0 ? 'Arrived' : `${Math.ceil(remainingDistance)} m`;
+      document.getElementById('panel-eta').textContent = etaText;
+      document.getElementById('panel-arrival').textContent = remainingDistance > 0 ? `Estimated arrival ${arrivalTime} · Demo pace` : 'You have reached your destination.';
+
+      const instruction = nextNavigationInstruction(activePathNodes, segmentIndex, segmentProgress);
+      document.getElementById('turn-guidance-icon').textContent = instruction.icon;
+      document.getElementById('turn-guidance-title').textContent = instruction.title;
+      document.getElementById('turn-guidance-distance').textContent = instruction.detail;
+    }
+
+    function requestBrowserLocation() {
+      if (!navigator.geolocation) {
+        setGpsStatus('GPS unavailable — using demo campus position', false);
+        return;
+      }
+      setGpsStatus('Requesting device location…', false);
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          appState.geolocation = { lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy };
+          appState.locationMode = 'browser-gps';
+          setGpsStatus(`Device GPS available • ±${Math.round(pos.coords.accuracy)}m`, true);
+        },
+        () => setGpsStatus('GPS permission unavailable — demo position active', false),
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 10000 }
+      );
+    }
+
+    function setGpsStatus(message, active) {
+      const dot = document.getElementById('gps-dot');
+      const text = document.getElementById('gps-text');
+      if (dot) dot.classList.toggle('active', !!active);
+      if (text) text.innerText = message;
+    }
+
+    function findClosestNode(pos) {
+      let closest = 'I_GATE1';
+      let minDist = Infinity;
+      Object.keys(roadNodes).forEach(k => {
+        const d = Math.hypot(roadNodes[k].x - pos.x, roadNodes[k].z - pos.z);
+        if (d < minDist) { minDist = d; closest = k; }
+      });
+      return closest;
+    }
+
+    function startRealtimeNavigation() {
+      if (isCampusTourActive) toggleCampusTour();
+      updateRoute();
+      if (!appState.routeReady) {
+        setGpsStatus('Choose a different start point or destination to build a route.', false);
+        return;
+      }
+      requestBrowserLocation();
+      isNavigating = true;
+      if (shouldFollowAfterTour && !isDroneViewActive) toggleDroneView();
+      shouldFollowAfterTour = false;
+      document.getElementById('btn-start-nav').style.display = 'none';
+      document.getElementById('btn-stop-nav').style.display = 'block';
+      document.getElementById('info-panel').style.display = 'block';
+      document.getElementById('turn-guidance').classList.add('active');
+      
+      const targetLoc = locationsData[selTo.value];
+      document.getElementById('panel-title').innerText = targetLoc ? targetLoc.name : 'Destination';
+      document.getElementById('panel-desc').innerText = targetLoc ? targetLoc.desc : '';
+
+      document.getElementById('gps-dot').classList.add('active');
+      document.getElementById('gps-text').innerText = 'GPS Tracking Active';
+
+      currentNavigationSegment = 0;
+      currentNavigationProgress = 0;
+      lastNavigationFrame = performance.now();
+      updateNavigationSummary(remainingRouteDistance(activePathNodes, currentNavigationSegment, currentNavigationProgress), currentNavigationSegment, currentNavigationProgress);
+
+      function step() {
+        if (!isNavigating) return;
+        const now = performance.now();
+        const deltaSeconds = Math.min((now - lastNavigationFrame) / 1000, 0.1);
+        lastNavigationFrame = now;
+        const currentStart = roadNodes[activePathNodes[currentNavigationSegment]];
+        const currentEnd = roadNodes[activePathNodes[currentNavigationSegment + 1]];
+        const segmentLength = Math.hypot(currentEnd.x - currentStart.x, currentEnd.z - currentStart.z);
+        currentNavigationProgress += navigationWalkSpeed * deltaSeconds / segmentLength;
+        if (currentNavigationProgress >= 1) {
+          currentNavigationProgress = 0;
+          currentNavigationSegment++;
+        }
+
+        if (currentNavigationSegment >= activePathNodes.length - 1) {
+          const target = locationsData[selTo.value];
+          if (target) userPedestrian.position.set(target.pos.x, 0, target.pos.z);
+          animateWalkingHuman(false);
+          updateNavigationSummary(0, currentNavigationSegment, 0);
+          stopRealtimeNavigation(true);
+          return;
+        }
+
+        const p1 = roadNodes[activePathNodes[currentNavigationSegment]];
+        const p2 = roadNodes[activePathNodes[currentNavigationSegment + 1]];
+        const curX = THREE.MathUtils.lerp(p1.x, p2.x, currentNavigationProgress);
+        const curZ = THREE.MathUtils.lerp(p1.z, p2.z, currentNavigationProgress);
+        userPedestrian.position.set(curX, 0, curZ);
+        userPedestrian.rotation.y = Math.atan2(p2.x - p1.x, p2.z - p1.z);
+        animateWalkingHuman(true, 1.3);
+        const remainingDistance = remainingRouteDistance(activePathNodes, currentNavigationSegment, currentNavigationProgress);
+        updateNavigationSummary(remainingDistance, currentNavigationSegment, currentNavigationProgress);
+
+        navAnimationId = requestAnimationFrame(step);
+      }
+      step();
+    }
+
+    function stopRealtimeNavigation(arrived = false) {
+      isNavigating = false;
+      if (navAnimationId) cancelAnimationFrame(navAnimationId);
+      animateWalkingHuman(false);
+      document.getElementById('btn-start-nav').style.display = 'flex';
+      document.getElementById('btn-stop-nav').style.display = 'none';
+      document.getElementById('gps-dot').classList.remove('active');
+      document.getElementById('gps-text').innerText = 'GPS Idle';
+      if (!arrived) document.getElementById('turn-guidance').classList.remove('active');
+    }
+
+    // --- 10. REALTIME SCENARIO TOGGLES ---
+    // Rain Particles
+    let rainParticles = null;
+    let isRaining = false;
+    function toggleRain() {
+      isRaining = !isRaining;
+      const btn = document.getElementById('btn-rain');
+      if (isRaining) {
+        btn.classList.add('active');
+        const count = 1500;
+        const geom = new THREE.BufferGeometry();
+        const pos = [];
+        for (let i = 0; i < count; i++) {
+          pos.push((Math.random() - 0.5) * 400, Math.random() * 150, (Math.random() - 0.5) * 400);
+        }
+        geom.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        const mat = new THREE.PointsMaterial({ color: 0x38bdf8, size: 0.8, transparent: true, opacity: 0.6 });
+        rainParticles = new THREE.Points(geom, mat);
+        scene.add(rainParticles);
+      } else {
+        btn.classList.remove('active');
+        if (rainParticles) scene.remove(rainParticles);
+      }
+    }
+
+    // Construction — realistic barricades + cones + blocked edge
+    let constructionMesh = null;
+    let isConst = false;
+    function toggleConstruction() {
+      isConst = !isConst;
+      const btn = document.getElementById('btn-const');
+      if (isConst) {
+        btn.classList.add('active');
+        constructionMesh = new THREE.Group();
+        const roadX=roadNodes.I_MID_W.x, roadZ=roadNodes.I_MID_W.z;
+        const barrierMat=new THREE.MeshStandardMaterial({color:0xf59e0b,roughness:.5});
+        for(let i=-3;i<=3;i++){const b=new THREE.Mesh(new THREE.BoxGeometry(4,1.8,.45),barrierMat);b.position.set(roadX+i*5,1,roadZ+7);constructionMesh.add(b);const c=new THREE.Mesh(new THREE.ConeGeometry(.65,2.2,16),new THREE.MeshStandardMaterial({color:0xf97316}));c.position.set(roadX+i*5,1.1,roadZ-7);constructionMesh.add(c)}
+        const sign=new THREE.Mesh(new THREE.BoxGeometry(16,6,.5),new THREE.MeshStandardMaterial({color:0x111827}));sign.position.set(roadX,4,roadZ);constructionMesh.add(sign);
+        scene.add(constructionMesh);
+        graph.I_MID_W.I_CENTER = 999; graph.I_CENTER.I_MID_W = 999;
+      } else {
+        btn.classList.remove('active');
+        if (constructionMesh) scene.remove(constructionMesh);
+        graph.I_MID_W.I_CENTER = 115; graph.I_CENTER.I_MID_W = 115;
+      }
+      updateRoute();
+    }
+
+    // Campus student population — visible even without the crowd toggle
+    let campusStudents = new THREE.Group();
+    campusStudents.name='campusStudents'; scene.add(campusStudents);
+    const studentPaths=[[-70,-5,70, -5],[-70,55,70,55],[-80,-55,0,-55],[40,-5,110,-5],[20,70,20,125],[-70,95,-20,95]];
+    for(let i=0;i<18;i++){const p=createPedestrianCharacter();p.scale.setScalar(AMBIENT_CHARACTER_SCALE);const path=studentPaths[i%studentPaths.length];p.userData.path=path;p.userData.t=(i*.083)%1;p.userData.speed=.00035+(i%4)*.00008;campusStudents.add(p)}
+
+    function updateCampusStudents(){
+      campusStudents.children.forEach((p,i)=>{const a=p.userData.path; p.userData.t=(p.userData.t+p.userData.speed)%1; const t=p.userData.t; const x=THREE.MathUtils.lerp(a[0],a[2],t); const z=THREE.MathUtils.lerp(a[1],a[3],t); p.position.set(x,0,z); p.rotation.y=Math.atan2(a[2]-a[0],a[3]-a[1]); const swing=Math.sin(Date.now()*.008+p.userData.t*10)*.45;p.userData.leftLegGroup.rotation.x=swing;p.userData.rightLegGroup.rotation.x=-swing;p.userData.leftArm.rotation.x=-swing;p.userData.rightArm.rotation.x=swing;});
+    }
+
+    let crowdGroup = null;
+    let isCrowd = false;
+    function toggleCrowd() {
+      isCrowd = !isCrowd;
+      const btn = document.getElementById('btn-crowd');
+      if (isCrowd) {
+        btn.classList.add('active'); crowdGroup = new THREE.Group();
+        for (let i = 0; i < 28; i++) { const p=createPedestrianCharacter(); p.scale.setScalar(AMBIENT_CHARACTER_SCALE); p.position.set(-95+(Math.random()-.5)*60,0,-55+(Math.random()-.5)*70); crowdGroup.add(p); }
+        scene.add(crowdGroup);
+      } else { btn.classList.remove('active'); if (crowdGroup) scene.remove(crowdGroup); }
+    }
+
+    // --- 11. RAYCASTING & INTERACTION ---
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    window.addEventListener('pointerdown', (e) => {
+      // Ignore clicks that originate from UI controls.
+      if (e.target.closest('.nav-box, .header, .info-panel, .kpi-strip, .demo-badge, #loading-screen')) return;
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(interactives);
+      if (intersects.length > 0) {
+        const item = intersects[0].object.userData;
+        selTo.value = item.id;
+        onDestinationChange();
+        document.getElementById('info-panel').style.display = 'block';
+        document.getElementById('panel-title').innerText = item.name;
+        document.getElementById('panel-desc').innerText = item.desc;
+      }
+    });
+
+    // --- 12. RAYCAST LABELS & ANIMATION LOOP ---
+    const tempV = new THREE.Vector3();
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      if (controls.enabled) controls.update();
+      updateKeyboardMove();
+      updateCampusTour();
+      updateFollowCamera();
+      updateCampusStudents();
+      if (typeof sportsPlayers !== 'undefined') {
+        sportsPlayers.children.forEach((p,i)=>{p.userData.phase+=.03; p.position.z += Math.sin(p.userData.phase)*.045;});
+      }
+      if (typeof pickleGroup !== 'undefined') {
+        const players=pickleGroup.children.filter(x=>x.userData && x.userData.leftLegGroup);
+        if(players.length>=2){players[0].position.z=Math.sin(Date.now()*.002)*5;players[1].position.z=-Math.sin(Date.now()*.002)*5;}
+      }
+
+      // Rain animation
+      if (isRaining && rainParticles) {
+        const positions = rainParticles.geometry.attributes.position.array;
+        for (let i = 1; i < positions.length; i += 3) {
+          positions[i] -= 2.5;
+          if (positions[i] < 0) positions[i] = 150;
+        }
+        rainParticles.geometry.attributes.position.needsUpdate = true;
+      }
+
+      // Update 2D labels over 3D coordinates
+      labels.forEach(lbl => {
+        if (indoorState.active) { lbl.el.style.display = 'none'; return; }
+        lbl.el.style.display = '';
+        tempV.copy(lbl.pos);
+        tempV.project(camera);
+        const x = (tempV.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-tempV.y * 0.5 + 0.5) * window.innerHeight;
+        lbl.el.style.transform = `translate(-50%, -100%) translate(${x}px,${y}px)`;
+        lbl.el.style.opacity = tempV.z < 1 ? '1' : '0';
+      });
+
+      renderer.render(scene, camera);
+    }
+
+    // Desktop free-move keyboard controls (OrbitControls remains available for touch/mouse).
+    const keys={};
+    window.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;});
+    window.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
+    function updateKeyboardMove(){
+      if(!freeExplore || isCampusTourActive || isDroneViewActive) return;
+      const step=1.8; const dir=new THREE.Vector3(); camera.getWorldDirection(dir); dir.y=0; dir.normalize(); const right=new THREE.Vector3().crossVectors(dir,camera.up).normalize();
+      if(keys.w||keys.arrowup) camera.position.addScaledVector(dir,step); if(keys.s||keys.arrowdown) camera.position.addScaledVector(dir,-step); if(keys.a||keys.arrowleft) camera.position.addScaledVector(right,-step); if(keys.d||keys.arrowright) camera.position.addScaledVector(right,step);
+      if(keys.w||keys.s||keys.a||keys.d||keys.arrowup||keys.arrowdown||keys.arrowleft||keys.arrowright){controls.target.copy(camera.position).add(dir.multiplyScalar(20));}
+    }
+
+    // --- 13. RESIZE HANDLER ---
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Initialize initial route visualization
+    updateRoute();
+    updateInteriorAvailability();
+    requestAnimationFrame(() => {
+      const loading = document.getElementById('loading-screen');
+      if (loading) loading.classList.add('hidden');
+    });
+    animate();
+  </script>
+</body>
+</html>
